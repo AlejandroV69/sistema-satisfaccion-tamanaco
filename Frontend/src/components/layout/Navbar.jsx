@@ -20,7 +20,7 @@ const Navbar = () => {
           Encuesta
         </Link>
         <Link to="/login" className="border border-amber-600 text-amber-500 px-5 py-2 rounded-sm text-xs uppercase tracking-widest font-bold hover:bg-amber-600 hover:text-white transition-all">
-          Acceso Staff
+          Entrar
         </Link>
       </div>
     </nav>

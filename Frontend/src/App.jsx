@@ -1,19 +1,21 @@
-import { BrowserRouter as Router } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
+import Home from "./pages/Home";
+import Survey from "./pages/Survey";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard"
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-slate-50">
-        {/* Solo cargamos el Navbar para probarlo */}
         <Navbar />
-
-        <div className="p-20 text-center">
-          <h1 className="text-2xl text-slate-400 font-serif italic">
-            Vista previa del Layout - Hotel Tamanaco
-          </h1>
-          <p className="text-slate-400 mt-2">Las demás páginas están desactivadas temporalmente.</p>
-        </div>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/survey" element={<Survey />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
       </div>
     </Router>
   );
