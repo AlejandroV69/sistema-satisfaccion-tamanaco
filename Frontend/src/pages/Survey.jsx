@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Star, User, CheckCircle2, Calendar, Phone } from 'lucide-react';
+import { Star, User, CheckCircle2, Calendar, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { allCountries } from '../data/countries';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Loader from '../components/ui/Loader';
 import './Survey.css';
 
 const StarRating = ({ value, onChange }) => {
@@ -22,13 +25,13 @@ const StarRating = ({ value, onChange }) => {
 };
 
 const Survey = () => {
-  console.log('--- COMPONENTE SURVEY RENDERIZADO ---');
   const [questions, setQuestions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(null);
   
-  // Guest Info State (Matching huespedes schema)
   const [guestInfo, setGuestInfo] = useState({
     Nombre_completo: '',
     email: '',
@@ -39,7 +42,6 @@ const Survey = () => {
     country_code: '+58'
   });
 
-  // Answers State
   const [answers, setAnswers] = useState({});
 
   useEffect(() => {
@@ -49,31 +51,24 @@ const Survey = () => {
   const fetchSurveyData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // 1. Fetch Categories first
       const { data: catData, error: catError } = await supabase
         .from('categorias_servicio')
         .select('*');
-      if (catError) {
-        console.error('ERROR - Survey (Categorías):', catError);
-        throw catError;
-      }
-      console.log('Survey - Categorías cargadas:', catData);
+      if (catError) throw catError;
       setCategories(catData || []);
 
-      // 2. Fetch Questions
       const { data: qData, error: qError } = await supabase
         .from('preguntas')
         .select('*')
+        .eq('activa', true)
         .order('id_preguntas', { ascending: true });
-      if (qError) {
-        console.error('ERROR - Survey (Preguntas):', qError);
-        throw qError;
-      }
-      console.log('Survey - Preguntas cargadas:', qData);
+      
+      if (qError) throw qError;
+      
       setQuestions(qData || []);
       
-      // Initialize answers
       const initialAnswers = {};
       qData?.forEach(q => {
         initialAnswers[q.id_preguntas] = 0;
@@ -81,55 +76,111 @@ const Survey = () => {
       setAnswers(initialAnswers);
     } catch (error) {
       console.error('Error fetching survey data:', error);
+      setError('No se pudieron cargar las preguntas. Por favor, intente más tarde.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRatingChange = (id_pregunta, rating) => {
-    setAnswers(prev => ({
-      ...prev,
-      [id_pregunta]: rating
-    }));
+    setAnswers(prev => ({ ...prev, [id_pregunta]: rating }));
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setGuestInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setGuestInfo(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Combine country code and phone for final data
-    const finalPhone = `${guestInfo.country_code} ${guestInfo.telefono_huesped}`.trim();
-    const submissionData = { ...guestInfo, telefono_huesped: finalPhone };
-    delete submissionData.country_code;
     
-    console.log('Final Data Submission:', { guestInfo: submissionData, answers });
-    // Future work: Insert into 'huespedes', 'encuestas_realizadas', and 'respuesta_detalle'
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Validate that all questions are answered
+    const unanswered = questions.some(q => !answers[q.id_preguntas]);
+    if (unanswered) {
+      alert('Por favor, responda todas las preguntas de la encuesta.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      // 1. Combine country code and phone
+      const finalPhone = `${guestInfo.country_code} ${guestInfo.telefono_huesped}`.trim();
+      const guestData = { 
+        Nombre_completo: guestInfo.Nombre_completo,
+        email: guestInfo.email,
+        num_habitacion: guestInfo.num_habitacion,
+        fecha_llegada: guestInfo.fecha_llegada,
+        fecha_salida: guestInfo.fecha_salida,
+        telefono_huesped: finalPhone
+      };
+
+      // 2. Insert or get Guest
+      // (For this version, we always insert a "guest record" per survey or use email as unique)
+      const { data: newGuest, error: guestError } = await supabase
+        .from('huespedes')
+        .insert([guestData])
+        .select()
+        .single();
+
+      if (guestError) throw guestError;
+
+      // 3. Create Survey Record Header
+      const { data: newSurvey, error: surveyError } = await supabase
+        .from('encuestas_realizadas')
+        .insert([{ 
+          huesped_id: newGuest.id_huesped,
+          fecha_realizacion: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (surveyError) throw surveyError;
+
+      // 4. Create Answer Details (Bulk Insert)
+      const answerDetails = Object.entries(answers).map(([preguntaId, valor]) => ({
+        encuesta_id: newSurvey.id_encuesta,
+        pregunta_id: parseInt(preguntaId),
+        valor_respuesta: valor
+      }));
+
+      const { error: detailsError } = await supabase
+        .from('respuesta_detalle')
+        .insert(answerDetails);
+
+      if (detailsError) throw detailsError;
+
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (err) {
+      console.error('Error submitting survey:', err);
+      setError(`Ocurrió un error al enviar la encuesta: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
     return (
-      <div className="survey-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="survey-card" style={{ textAlign: 'center', maxWidth: '500px' }}>
-          <CheckCircle2 size={64} color="#C5A02D" style={{ marginBottom: '1.5rem', display: 'inline-block' }} />
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: '2rem', marginBottom: '1rem' }}>¡Gracias por tu Comentario!</h2>
-          <p style={{ color: '#64748b', marginBottom: '2rem' }}>Tu opinión es fundamental para que el Hotel Tamanaco siga ofreciendo la excelencia que mereces.</p>
-          <button onClick={() => window.location.reload()} className="submit-survey-btn" style={{ width: 'auto', padding: '1rem 2rem' }}>
+      <div className="survey-page flex items-center justify-center min-h-[70vh]">
+        <Card className="max-w-md text-center py-12 px-8">
+          <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 size={40} />
+          </div>
+          <h2 className="text-3xl font-serif mb-4">¡Muchas Gracias!</h2>
+          <p className="text-slate-500 mb-8 leading-relaxed">
+            Tu opinión es fundamental para que el Hotel Tamanaco siga ofreciendo la excelencia que mereces.
+          </p>
+          <Button variant="accent" onClick={() => window.location.reload()}>
             Volver al Inicio
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
 
-  // Group questions by category name
   const groupedQuestions = questions.reduce((acc, q) => {
     const category = categories.find(c => c.id_servicio === q.categoria_id);
     const catName = category ? category.nombre_servicio : 'Otros Servicios';
@@ -138,115 +189,134 @@ const Survey = () => {
     return acc;
   }, {});
 
-  console.log('Survey - Preguntas agrupadas:', groupedQuestions);
+  if (loading) return <Loader fullPage message="Preparando encuesta..." />;
 
   return (
-    <div className="survey-page">
-      <header className="survey-header">
-        <h1>Hotel Tamanaco</h1>
-        <p>Tu satisfacción es nuestro compromiso de excelencia.</p>
+    <div className="survey-page px-4 pt-4 pb-20">
+      <header className="text-center mb-12">
+        <h1 className="text-4xl font-serif text-slate-900 mb-2">Hotel Tamanaco</h1>
+        <p className="text-lg text-slate-500">Tu satisfacción es nuestro compromiso de excelencia.</p>
       </header>
 
-      <form onSubmit={handleSubmit}>
-        <section className="survey-card">
-          <h2 className="survey-section-title">
-            <User size={24} color="#C5A02D" />
-            Información del Huésped
-          </h2>
-          <div className="guest-info-grid">
+      {error && (
+        <div className="max-w-3xl mx-auto mb-8 p-4 bg-red-50 border border-red-100 text-red-700 rounded-xl flex items-center gap-3">
+          <AlertCircle size={20} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-8">
+        <Card title="Información del Huésped" icon={<User size={22} />}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="guest-info-field">
-              <label>Nombre Completo</label>
-              <div className="input-field-wrapper">
-                <input type="text" name="Nombre_completo" value={guestInfo.Nombre_completo} onChange={handleInputChange} placeholder="Ej. Juan Pérez" required />
-              </div>
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Nombre Completo</label>
+              <input 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all"
+                type="text" name="Nombre_completo" value={guestInfo.Nombre_completo} onChange={handleInputChange} placeholder="Ej. Juan Pérez" required 
+              />
             </div>
             
             <div className="guest-info-field">
-              <label>Correo Electrónico</label>
-              <div className="input-field-wrapper">
-                <input type="email" name="email" value={guestInfo.email} onChange={handleInputChange} placeholder="juan@email.com" required />
-              </div>
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Correo Electrónico</label>
+              <input 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all"
+                type="email" name="email" value={guestInfo.email} onChange={handleInputChange} placeholder="juan@email.com" required 
+              />
             </div>
 
             <div className="guest-info-field">
-              <label>Número de Habitación</label>
-              <div className="input-field-wrapper">
-                <input type="text" name="num_habitacion" value={guestInfo.num_habitacion} onChange={handleInputChange} placeholder="Ej. 402" required />
-              </div>
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Habitación</label>
+              <input 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all"
+                type="text" name="num_habitacion" value={guestInfo.num_habitacion} onChange={handleInputChange} placeholder="Ej. 402" required 
+              />
             </div>
 
-            <div className="guest-info-field">
-              <label>Teléfono de Contacto</label>
-              <div className="input-field-wrapper phone-input-flex">
+            <div className="guest-info-field w-full">
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Teléfono</label>
+              <div className="flex items-stretch gap-2 w-full">
                 <select 
                   name="country_code" 
                   value={guestInfo.country_code} 
                   onChange={handleInputChange}
-                  className="country-selector"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all appearance-none cursor-pointer"
+                  style={{ width: '100px', flexShrink: 0 }}
                 >
-                  {allCountries.map(c => (
-                    <option key={`${c.code}-${c.name}`} value={c.dial_code}>
+                  {allCountries.map((c, index) => (
+                    <option key={`${c.code}-${index}`} value={c.dial_code}>
                       {c.flag} {c.dial_code}
                     </option>
                   ))}
                 </select>
                 <input 
+                  className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all leading-none"
                   type="tel" 
                   name="telefono_huesped" 
                   value={guestInfo.telefono_huesped} 
                   onChange={handleInputChange} 
-                  placeholder="000 0000"
+                  placeholder="000 0000" 
                   required
                 />
               </div>
             </div>
 
             <div className="guest-info-field">
-              <label>Fecha de Llegada</label>
-              <div className="input-field-wrapper date-input-wrapper">
-                <input type="date" name="fecha_llegada" value={guestInfo.fecha_llegada} onChange={handleInputChange} required />
-                <Calendar size={18} className="date-icon" />
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Fecha de Llegada</label>
+              <div className="relative">
+                <input 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
+                  type="date" name="fecha_llegada" value={guestInfo.fecha_llegada} onChange={handleInputChange} required 
+                />
+                <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
             <div className="guest-info-field">
-              <label>Fecha de Salida</label>
-              <div className="input-field-wrapper date-input-wrapper">
-                <input type="date" name="fecha_salida" value={guestInfo.fecha_salida} onChange={handleInputChange} required />
-                <Calendar size={18} className="date-icon" />
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">Fecha de Salida</label>
+              <div className="relative">
+                <input 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
+                  type="date" name="fecha_salida" value={guestInfo.fecha_salida} onChange={handleInputChange} required 
+                />
+                <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
           </div>
-        </section>
+        </Card>
 
-        {loading ? (
-          <p style={{ textAlign: 'center', padding: '2rem' }}>Cargando encuesta...</p>
+        {Object.keys(groupedQuestions).length > 0 ? (
+          Object.keys(groupedQuestions).map((catName) => (
+            <Card key={catName} title={catName}>
+              <div className="space-y-8">
+                {groupedQuestions[catName].map((q) => (
+                  <div key={q.id_preguntas} className="question-item">
+                    <p className="text-lg text-slate-800 font-medium mb-4">{q.texto_pregunta}</p>
+                    <StarRating value={answers[q.id_preguntas]} onChange={(rating) => handleRatingChange(q.id_preguntas, rating)} />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))
         ) : (
-          Object.keys(groupedQuestions).length > 0 ? (
-            Object.keys(groupedQuestions).map((catName) => (
-              <section key={catName} className="survey-card">
-                <h2 className="survey-section-title">{catName}</h2>
-                <div className="questions-list">
-                  {groupedQuestions[catName].map((q) => (
-                    <div key={q.id_preguntas} className="question-item">
-                      <p className="question-text">{q.texto_pregunta}</p>
-                      <StarRating value={answers[q.id_preguntas]} onChange={(rating) => handleRatingChange(q.id_preguntas, rating)} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))
-          ) : (
-             <div className="survey-card" style={{ textAlign: 'center' }}>
-               <p style={{ color: '#64748b' }}>No hay preguntas configuradas actualmente para la encuesta.</p>
-             </div>
-          )
+           <Card className="text-center text-slate-500 py-12">
+             No hay preguntas configuradas actualmente.
+           </Card>
         )}
 
-        {Object.keys(groupedQuestions).length > 0 && <button type="submit" className="submit-survey-btn">Enviar Encuesta</button>}
+        {Object.keys(questions).length > 0 && (
+          <Button 
+            variant="accent" 
+            size="lg" 
+            className="w-full py-5" 
+            type="submit"
+            loading={submitting}
+          >
+            {submitting ? 'Enviando...' : 'Enviar Encuesta de Satisfacción'}
+          </Button>
+        )}
       </form>
     </div>
   );
 };
 
-export default Survey;
+export default Survey;

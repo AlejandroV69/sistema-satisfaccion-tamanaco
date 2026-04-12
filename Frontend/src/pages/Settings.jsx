@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Sliders, MessageSquare, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Loader from '../components/ui/Loader';
 
 const Settings = () => {
   const [questions, setQuestions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newQuestion, setNewQuestion] = useState({ texto_pregunta: '', categoria_id: '' });
+  const [addingToCategory, setAddingToCategory] = useState(null); // ID of category currently adding to
+  const [newQuestionTexts, setNewQuestionTexts] = useState({}); // { categoryId: 'text' }
   const [message, setMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
@@ -16,251 +21,186 @@ const Settings = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Iniciando carga de datos...');
       
-      // 1. Fetch Categories
       const { data: catData, error: catError } = await supabase
         .from('categorias_servicio')
         .select('*')
         .order('nombre_servicio', { ascending: true });
 
-      if (catError) {
-        console.error('DEBUG - Error Supabase (Categorías):', {
-          message: catError.message,
-          details: catError.details,
-          hint: catError.hint,
-          code: catError.code
-        });
-        throw catError;
-      }
-      
-      console.log('Categorías recibidas:', catData);
+      if (catError) throw catError;
       setCategories(catData || []);
       
-      // Set default category for the form
-      if (catData && catData.length > 0) {
-        setNewQuestion(prev => ({ ...prev, categoria_id: catData[0].id_servicio }));
-      } else {
-        console.warn('La tabla Categorias_servicio parece estar vacía.');
-      }
-
-      // 2. Fetch Questions
       const { data: qData, error: qError } = await supabase
         .from('preguntas')
         .select('*')
+        .eq('activa', true)
         .order('id_preguntas', { ascending: true });
 
-      if (qError) {
-        console.error('Error de Supabase (Preguntas):', qError);
-        throw qError;
-      }
+      if (qError) throw qError;
       setQuestions(qData || []);
 
     } catch (error) {
-      console.error('Error general en fetchInitialData:', error);
-      showStatus(`Error crítico: ${error.message || 'No se pudo conectar con la base de datos'}`, 'error');
+      console.error('Error loading settings:', error);
+      showStatus(`Error: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddQuestion = async (e) => {
-    e.preventDefault();
-    if (!newQuestion.texto_pregunta.trim() || !newQuestion.categoria_id) {
-      showStatus('Completa todos los campos', 'error');
-      return;
-    }
+  const handleAddQuestion = async (categoryId) => {
+    const text = newQuestionTexts[categoryId];
+    if (!text || !text.trim()) return;
 
     try {
+      setAddingToCategory(categoryId);
       const { data, error } = await supabase
         .from('preguntas')
         .insert([{ 
-          texto_pregunta: newQuestion.texto_pregunta, 
-          categoria_id: newQuestion.categoria_id,
-          es_obligatorio: true // Default based on schema
+          texto_pregunta: text.trim(), 
+          categoria_id: categoryId,
+          es_obligatorio: true
         }])
         .select();
 
       if (error) throw error;
 
-      setQuestions([...questions, ...data]);
-      setNewQuestion({ ...newQuestion, texto_pregunta: '' });
+      setQuestions(prev => [...prev, ...data]);
+      setNewQuestionTexts(prev => ({ ...prev, [categoryId]: '' }));
       showStatus('Pregunta añadida correctamente', 'success');
     } catch (error) {
       console.error('Error adding question:', error);
-      showStatus(`Error al añadir pregunta: ${error.message}`, 'error');
+      showStatus(`Error: ${error.message}`, 'error');
+    } finally {
+      setAddingToCategory(null);
     }
   };
 
   const handleDeleteQuestion = async (id) => {
+    if (!window.confirm('¿Estás seguro de desactivar esta pregunta? Dejará de aparecer en las nuevas encuestas pero se conservará en el historial.')) {
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('preguntas')
-        .delete()
-        .eq('id_preguntas', id); // Based on schema PK
+        .update({ activa: false }, { count: 'exact' })
+        .eq('id_preguntas', id);
 
       if (error) throw error;
 
-      setQuestions(questions.filter(q => q.id_preguntas !== id));
-      showStatus('Pregunta eliminada', 'success');
+      if (count === 0) {
+        throw new Error('La base de datos no permitió la actualización. Asegúrate de tener una política de "UPDATE" configurada en Supabase para la tabla "preguntas".');
+      }
+
+      setQuestions(prev => prev.filter(q => q.id_preguntas !== id));
+      showStatus('Pregunta desactivada correctamente', 'success');
     } catch (error) {
-      console.error('Error deleting question:', error);
-      showStatus(`Error al eliminar pregunta: ${error.message}`, 'error');
+      console.error('Error soft-deleting question:', error);
+      showStatus(error.message, 'error');
     }
   };
 
   const showStatus = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    setTimeout(() => setMessage({ text: '', type: '' }), 5000);
   };
 
-  const sections = [
-    {
-      title: 'Notificaciones',
-      desc: 'Configura quién recibe alertas de insatisfacción.',
-      icon: <Bell size={20} color="#C5A02D" />,
-      fields: [
-        { label: 'Correo Administrador', value: 'admin@tamanaco.com.ve' },
-        { label: 'Correo Gerencia', value: 'gerencia@tamanaco.com.ve' }
-      ]
-    },
-    {
-      title: 'Sistema y Encuestas',
-      desc: 'Parámetros generales del sistema de satisfacción.',
-      icon: <Sliders size={20} color="#C5A02D" />,
-      fields: [
-        { label: 'Umbral de Alerta', value: '3 estrellas o menos' },
-        { label: 'Tiempo de Sesión', value: '8 horas' }
-      ]
-    }
-  ];
+  const handleInputChange = (categoryId, value) => {
+    setNewQuestionTexts(prev => ({ ...prev, [categoryId]: value }));
+  };
+
+  if (loading) return <Loader fullPage message="Cargando configuración..." />;
 
   return (
-    <div className="settings-container">
-      <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', color: '#0f172a' }}>Configuración</h1>
-        <p style={{ color: '#64748b' }}>Gestiona los parámetros globales y notificaciones del sistema.</p>
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <header className="mb-10">
+        <h1 className="text-3xl font-serif text-slate-900 mb-2">Configuración de Encuestas</h1>
+        <p className="text-slate-500">Administra las preguntas del sistema organizadas por departamento de servicio.</p>
       </header>
 
       {message.text && (
-        <div style={{ 
-          padding: '1rem', borderRadius: '8px', marginBottom: '1rem',
-          backgroundColor: message.type === 'success' ? '#dcfce7' : '#fee2e2',
-          color: message.type === 'success' ? '#166534' : '#991b1b',
-          display: 'flex', alignItems: 'center', gap: '0.5rem'
-        }}>
-          {message.type === 'success' && <CheckCircle2 size={18} />}
-          {message.text}
+        <div className={`
+          fixed top-8 right-8 z-[100] p-4 rounded-xl shadow-lg border flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300
+          ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}
+        `}>
+          {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-medium">{message.text}</span>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        {/* Question Management Section */}
-        <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-          <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <MessageSquare size={20} color="#C5A02D" />
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a' }}>Gestión de Preguntas</h3>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>Añade o elimina las preguntas de la encuesta por servicio.</p>
-            </div>
-          </div>
-
-          <div style={{ padding: '1.5rem' }}>
-            {/* Add Question Form */}
-            <form onSubmit={handleAddQuestion} style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-              <input 
-                type="text" 
-                placeholder="Escribe la nueva pregunta..."
-                value={newQuestion.texto_pregunta}
-                onChange={(e) => setNewQuestion({ ...newQuestion, texto_pregunta: e.target.value })}
-                style={{ flex: 1, minWidth: '300px', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-              />
-              <select 
-                value={newQuestion.categoria_id}
-                onChange={(e) => setNewQuestion({ ...newQuestion, categoria_id: e.target.value })}
-                style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }}
-                disabled={loading || categories.length === 0}
-              >
-                {loading ? (
-                  <option value="">Cargando categorías...</option>
-                ) : categories.length === 0 ? (
-                  <option value="">No se encontraron categorías</option>
-                ) : (
-                  categories.map(c => (
-                    <option key={c.id_servicio} value={c.id_servicio}>
-                      {c.nombre_servicio}
-                    </option>
-                  ))
-                )}
-              </select>
-              <button 
-                type="submit"
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                  backgroundColor: '#0f172a', color: '#fff', 
-                  padding: '0.75rem 1.5rem', borderRadius: '8px', border: 'none', 
-                  fontWeight: '600', cursor: 'pointer' 
-                }}
-              >
-                <Plus size={18} /> Añadir
-              </button>
-            </form>
-
-            {/* Questions List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {loading ? (
-                <p style={{ textAlign: 'center', color: '#64748b' }}>Cargando datos...</p>
-              ) : questions.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#64748b' }}>No hay preguntas configuradas.</p>
-              ) : (
-                questions.map((q) => (
-                  <div key={q.id_preguntas} style={{ 
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '1rem', background: '#f8fafc', borderRadius: '8px',
-                    borderLeft: `4px solid #C5A02D`
-                  }}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#C5A02D', fontWeight: '700', letterSpacing: '0.05em' }}>
-                        {categories.find(c => c.id_servicio === q.categoria_id)?.nombre_servicio || 'Desconocido'}
-                      </span>
-                      <p style={{ margin: '0.25rem 0 0 0', color: '#0f172a', fontWeight: '500' }}>{q.texto_pregunta}</p>
-                    </div>
-                    <button 
-                      onClick={() => handleDeleteQuestion(q.id_preguntas)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                    >
-                      <Trash2 size={18} />
-                    </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {categories.map((category) => {
+          const catQuestions = questions.filter(q => q.categoria_id === category.id_servicio);
+          
+          return (
+            <Card 
+              key={category.id_servicio}
+              title={category.nombre_servicio}
+              icon={<MessageSquare size={22} />}
+              className="flex flex-col h-full"
+            >
+              <div className="flex-1 space-y-4 mb-6">
+                {catQuestions.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <HelpCircle className="mx-auto text-slate-300 mb-2" size={32} />
+                    <p className="text-sm text-slate-400">No hay preguntas para este servicio.</p>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Existing Static Sections */}
-        {sections.map((section, idx) => (
-          <div key={idx} style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              {section.icon}
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a' }}>{section.title}</h3>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>{section.desc}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {catQuestions.map((q) => (
+                      <div 
+                        key={q.id_preguntas} 
+                        className="group flex justify-between items-center p-3.5 bg-white border border-slate-100 rounded-xl hover:border-accent/30 hover:shadow-sm transition-all"
+                      >
+                        <p className="text-slate-700 text-sm font-medium leading-relaxed pr-4">
+                          {q.texto_pregunta}
+                        </p>
+                        <button 
+                          onClick={() => handleDeleteQuestion(q.id_preguntas)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Eliminar pregunta"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-            <div style={{ padding: '1.5rem' }}>
-              {section.fields.map((field, fIdx) => (
-                <div key={fIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', borderBottom: fIdx < section.fields.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-                  <span style={{ fontSize: '0.925rem', color: '#64748b', fontWeight: '500' }}>{field.label}</span>
-                  <span style={{ fontSize: '0.925rem', color: '#0f172a', fontWeight: '600' }}>{field.value}</span>
+
+              <div className="mt-auto pt-6 border-t border-slate-50">
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Nueva pregunta..."
+                    className="flex-1"
+                    value={newQuestionTexts[category.id_servicio] || ''}
+                    onChange={(e) => handleInputChange(category.id_servicio, e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddQuestion(category.id_servicio)}
+                  />
+                  <Button 
+                    variant="accent" 
+                    className="mt-1" 
+                    onClick={() => handleAddQuestion(category.id_servicio)}
+                    loading={addingToCategory === category.id_servicio}
+                    icon={Plus}
+                  >
+                    Añadir
+                  </Button>
                 </div>
-              ))}
-            </div>
+              </div>
+            </Card>
+          );
+        })}
+
+        {categories.length === 0 && (
+          <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-slate-100 italic text-slate-400">
+            No se encontraron categorías de servicio en la base de datos.
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 };
 
 export default Settings;
+
