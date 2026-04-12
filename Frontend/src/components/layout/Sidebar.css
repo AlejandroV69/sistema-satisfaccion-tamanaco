@@ -194,12 +194,12 @@
   font-weight: 500;
 }
 
-/* Mobile topbar */
+/* Mobile topbar - visible on all sizes, hamburger only on mobile */
 .admin-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
+  padding: 2rem 1.75rem;
   background-color: #0f172a;
   color: white;
   border-bottom: 1px solid rgba(197, 160, 45, 0.2);
@@ -208,22 +208,15 @@
   z-index: 50;
 }
 
-.admin-topbar-title {
-  font-family: var(--serif);
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.05em;
-}
-
+/* Hide hamburger on desktop, shown only on mobile via media query */
 .admin-menu-btn {
+  display: none;
   background: rgba(255,255,255,0.08);
   border: none;
   color: #fff;
   padding: 0.5rem;
   border-radius: 8px;
   cursor: pointer;
-  display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
@@ -233,8 +226,31 @@
   background: rgba(255,255,255,0.15);
 }
 
+.admin-topbar-title {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  /* Always perfectly centered regardless of sidebar buttons */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.admin-topbar-spacer {
+  width: 32px;
+}
+
 /* Mobile responsive styles */
 @media (max-width: 768px) {
+  /* Show hamburger on mobile */
+  .admin-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .sidebar {
     position: fixed;
     left: 0;

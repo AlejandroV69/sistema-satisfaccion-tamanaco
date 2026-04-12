@@ -13,8 +13,8 @@ const AdminLayout = () => {
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile top bar */}
-        <header className="admin-topbar md:hidden">
+        {/* Top bar - shows TAMANACO on all screens, hamburger only on mobile */}
+        <header className="admin-topbar">
           <button
             onClick={() => setSidebarOpen(true)}
             className="admin-menu-btn"
@@ -23,7 +23,7 @@ const AdminLayout = () => {
             <Menu size={22} />
           </button>
           <span className="admin-topbar-title">TAMANACO</span>
-          <div className="w-8" /> {/* Spacer for centering */}
+          <div className="admin-topbar-spacer" />
         </header>
 
         <main className="flex-1 p-4 md:p-8 overflow-y-auto">
