@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ClipboardList, 
@@ -25,8 +25,20 @@ import Button from '../components/ui/Button';
 import Loader from '../components/ui/Loader';
 import { supabase } from '../lib/supabaseClient';
 
+// Hook to detect mobile screen
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isMobile;
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState({
     totalEncuestas: 0,
@@ -150,35 +162,46 @@ const Dashboard = () => {
       </div>
 
       {/* Dashboard General - Comparativa de Servicios */}
-      <Card title="Dashboard General de Servicios" Icon={BarChartIcon} className="mt-8 mb-4">
-        <div className="h-[350px] w-full mt-4">
+      <Card title="Dashboard General de Servicios" icon={BarChartIcon} className="mt-8 mb-4">
+        <div className="h-[300px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={deptStats}
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              layout={isMobile ? 'vertical' : 'horizontal'}
+              margin={isMobile
+                ? { top: 5, right: 50, left: 20, bottom: 5 }
+                : { top: 20, right: 30, left: 10, bottom: 10 }
+              }
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"
+                vertical={!isMobile}
+                horizontal={isMobile}
               />
-              <YAxis 
-                domain={[0, 5]} 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-              />
+              {isMobile ? (
+                <>
+                  <XAxis type="number" domain={[0, 5]} ticks={[1,2,3,4,5]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={110} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} />
+                </>
+              ) : (
+                <>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} />
+                  <YAxis domain={[0, 5]} ticks={[1,2,3,4,5]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                </>
+              )}
               <Tooltip 
                 cursor={{ fill: '#f8fafc' }}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
               />
               <Bar 
                 dataKey="score" 
-                radius={[4, 4, 0, 0]} 
-                barSize={40}
-                label={{ position: 'top', fill: '#0f172a', fontWeight: 'bold', fontSize: 13 }}
+                radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+                barSize={isMobile ? 24 : 40}
+                label={{ 
+                  position: isMobile ? 'right' : 'top', 
+                  fill: '#0f172a', 
+                  fontWeight: 'bold', 
+                  fontSize: 13 
+                }}
               >
                 {deptStats.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

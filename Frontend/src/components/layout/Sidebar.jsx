@@ -1,25 +1,26 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
   ClipboardList, 
   Settings, 
   LogOut,
-  ChevronDown
+  ChevronDown,
+  X,
+  Menu
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import './Sidebar.css';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const [statsOpen, setStatsOpen] = useState(false);
-  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      // Force a hard refresh to clear all app state and prevent 'Back' button session re-entry
       window.location.replace('/login');
     } catch (error) {
       console.error('Error closing session:', error.message);
@@ -32,69 +33,91 @@ const Sidebar = () => {
     setStatsOpen(!statsOpen);
   };
 
+  const handleNavClick = () => {
+    if (onClose) onClose(); // close on mobile after navigating
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <NavLink to="/dashboard" className="sidebar-logo">
-          TAMANACO
-        </NavLink>
-        <span className="sidebar-subtitle">Satisfaction System</span>
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={onClose}
+        />
+      )}
 
-      <nav className="sidebar-nav">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <LayoutDashboard size={20} />
-          <span>Inicio</span>
-        </NavLink>
+      <aside className={`sidebar ${isOpen ? 'sidebar-mobile-open' : ''}`}>
+        {/* Mobile close button */}
+        <button className="sidebar-close-btn" onClick={onClose}>
+          <X size={20} />
+        </button>
 
-        <div className={`sidebar-item-group ${statsOpen ? 'open' : ''}`}>
-          <a 
-            href="#" 
-            className={`sidebar-link has-submenu ${statsOpen ? 'open' : ''}`}
-            onClick={toggleStats}
-          >
-            <BarChart3 size={20} />
-            <span>Estadísticas</span>
-            <ChevronDown size={16} className="chevron-icon" />
-          </a>
-          
-          {statsOpen && (
-            <div className="submenu">
-              <NavLink to="/stats/recepcion" className="submenu-link">Recepción</NavLink>
-              <NavLink to="/stats/habitaciones" className="submenu-link">Habitaciones</NavLink>
-              <NavLink to="/stats/restaurante" className="submenu-link">Restaurante</NavLink>
-              <NavLink to="/stats/areas-comunes" className="submenu-link">Áreas Comunes</NavLink>
-            </div>
-          )}
+        <div className="sidebar-header">
+          <NavLink to="/dashboard" className="sidebar-logo" onClick={handleNavClick}>
+            TAMANACO
+          </NavLink>
+          <span className="sidebar-subtitle">Satisfaction System</span>
         </div>
 
-        <NavLink
-          to="/surveys"
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <ClipboardList size={20} />
-          <span>Gestión de Encuestas</span>
-        </NavLink>
+        <nav className="sidebar-nav">
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <LayoutDashboard size={20} />
+            <span>Inicio</span>
+          </NavLink>
 
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Settings size={20} />
-          <span>Configuración</span>
-        </NavLink>
-      </nav>
+          <div className={`sidebar-item-group ${statsOpen ? 'open' : ''}`}>
+            <a 
+              href="#" 
+              className={`sidebar-link has-submenu ${statsOpen ? 'open' : ''}`}
+              onClick={toggleStats}
+            >
+              <BarChart3 size={20} />
+              <span>Estadísticas</span>
+              <ChevronDown size={16} className="chevron-icon" />
+            </a>
+            
+            {statsOpen && (
+              <div className="submenu">
+                <NavLink to="/stats/recepcion" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Recepción</NavLink>
+                <NavLink to="/stats/habitaciones" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Habitaciones</NavLink>
+                <NavLink to="/stats/restaurante" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Restaurante</NavLink>
+                <NavLink to="/stats/areas-comunes" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Áreas Comunes</NavLink>
+              </div>
+            )}
+          </div>
 
-      <div className="sidebar-footer">
-        <button onClick={handleLogout} className="logout-button">
-          <LogOut size={20} />
-          <span>Cerrar Sesión</span>
-        </button>
-      </div>
-    </aside>
+          <NavLink
+            to="/surveys"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <ClipboardList size={20} />
+            <span>Gestión de Encuestas</span>
+          </NavLink>
+
+          <NavLink
+            to="/settings"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <Settings size={20} />
+            <span>Configuración</span>
+          </NavLink>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="logout-button">
+            <LogOut size={20} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

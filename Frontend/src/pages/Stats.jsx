@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   BarChart3, 
@@ -23,13 +23,26 @@ import {
   Cell 
 } from 'recharts';
 
+// Hook to detect mobile screen
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isMobile;
+};
+
+
 const Stats = () => {
   const { serviceId } = useParams();
-  const [loading, setLoading] = React.useState(true);
-  const [metrics, setMetrics] = React.useState([]);
-  const [comments, setComments] = React.useState([]);
-  const [chartData, setChartData] = React.useState([]);
-  const [serviceName, setServiceName] = React.useState('Cargando...');
+  const isMobile = useIsMobile();
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [serviceName, setServiceName] = useState('Cargando...');
 
   const serviceSlugs = {
     'recepcion': 'Recepción',
@@ -178,7 +191,7 @@ const Stats = () => {
 
       <div className="grid grid-cols-1 gap-8">
         {/* Main Vertical Chart Card */}
-        <Card title="Satisfacción por Item" icon={BarChart3}>
+        <Card title="Satisfacción por Pregunta" icon={BarChart3}>
           <div className="h-[450px] w-full mt-6">
             {chartData.length === 0 ? (
               <div className="h-full flex items-center justify-center bg-slate-50 rounded-2xl">
@@ -187,22 +200,28 @@ const Stats = () => {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={chartData}
-                  margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="shortName" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
-                  />
-                  <YAxis 
-                    domain={[0, 5]} 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  />
+                data={chartData}
+                layout={isMobile ? 'vertical' : 'horizontal'}
+                margin={isMobile
+                  ? { top: 5, right: 40, left: 10, bottom: 5 }
+                  : { top: 20, right: 30, left: 10, bottom: 20 }
+                }
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"
+                  vertical={!isMobile}
+                  horizontal={isMobile}
+                />
+                {isMobile ? (
+                  <>
+                    <XAxis type="number" domain={[0, 5]} ticks={[1,2,3,4,5]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis type="category" dataKey="shortName" width={35} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }} />
+                  </>
+                ) : (
+                  <>
+                    <XAxis dataKey="shortName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }} />
+                    <YAxis domain={[0, 5]} ticks={[1,2,3,4,5]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  </>
+                )}
                   <Tooltip 
                     cursor={{ fill: '#f8fafc' }}
                     content={({ active, payload }) => {

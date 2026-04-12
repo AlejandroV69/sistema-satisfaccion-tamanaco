@@ -1,15 +1,45 @@
 .sidebar {
   width: 280px;
   height: 100vh;
-  background-color: #0f172a; /* Sophisticated Navy Blue from index.css var --text-h */
+  background-color: #0f172a;
   display: flex;
   flex-direction: column;
   color: #fff;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease;
   z-index: 1000;
-  border-right: 1px solid rgba(197, 160, 45, 0.2); /* Gold accent border */
+  border-right: 1px solid rgba(197, 160, 45, 0.2);
   position: sticky;
   top: 0;
+  flex-shrink: 0;
+}
+
+/* Mobile close button - only visible on small screens */
+.sidebar-close-btn {
+  display: none;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #fff;
+  padding: 0.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+.sidebar-close-btn:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* Overlay behind sidebar on mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+  backdrop-filter: blur(2px);
 }
 
 .sidebar-header {
@@ -23,7 +53,7 @@
   font-family: var(--serif);
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--accent); /* Gold */
+  color: var(--accent);
   letter-spacing: 0.05em;
   text-decoration: none;
 }
@@ -43,11 +73,11 @@
   flex-direction: column;
   gap: 0.25rem;
   overflow-y: auto;
-  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
 }
 
 .sidebar-nav::-webkit-scrollbar {
-  display: none; /* Hide scrollbar for Chrome/Safari */
+  display: none;
 }
 
 .sidebar-link {
@@ -64,7 +94,7 @@
 }
 
 .sidebar-link:hover {
-  background-color: rgba(197, 160, 45, 0.08); /* Faded gold hover */
+  background-color: rgba(197, 160, 45, 0.08);
   color: #fff;
 }
 
@@ -79,6 +109,7 @@
   width: 20px;
   height: 20px;
   opacity: 0.7;
+  flex-shrink: 0;
 }
 
 .sidebar-link.active svg {
@@ -90,6 +121,7 @@
   padding: 2rem 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .logout-button {
@@ -97,7 +129,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  color: #ff4d4d; /* Subtle red for logout */
+  color: #ff4d4d;
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 500;
@@ -116,6 +148,7 @@
 .logout-button svg {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
 }
 
 .sidebar-link.has-submenu {
@@ -142,7 +175,7 @@
 }
 
 .submenu-link {
-  padding: 0.8rem 1.5rem 0.8rem 3.5rem; /* Indented */
+  padding: 0.8rem 1.5rem 0.8rem 3.5rem;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   font-size: 0.85rem;
@@ -161,29 +194,68 @@
   font-weight: 500;
 }
 
-/* Responsive adjustments */
+/* Mobile topbar */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background-color: #0f172a;
+  color: white;
+  border-bottom: 1px solid rgba(197, 160, 45, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.admin-topbar-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.admin-menu-btn {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.admin-menu-btn:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* Mobile responsive styles */
 @media (max-width: 768px) {
   .sidebar {
-    width: 80px;
-    padding-top: 1rem;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1000;
+    width: 280px;
   }
 
-  .sidebar-header, .sidebar-subtitle, .sidebar-link span, .logout-button span, .chevron-icon, .submenu {
-    display: none;
+  .sidebar.sidebar-mobile-open {
+    transform: translateX(0);
   }
 
-  .sidebar-logo {
-    font-size: 1.2rem;
-    text-align: center;
-  }
-
-  .sidebar-link, .logout-button {
+  .sidebar-close-btn {
+    display: flex;
+    align-items: center;
     justify-content: center;
-    padding: 1.2rem;
   }
 
-  .sidebar-link svg, .logout-button svg {
-    width: 24px;
-    height: 24px;
+  .sidebar-overlay {
+    display: block;
   }
 }
