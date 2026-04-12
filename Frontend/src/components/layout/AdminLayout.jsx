@@ -4,16 +4,12 @@ import Sidebar from './Sidebar';
 
 const AdminLayout = () => {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
       <Sidebar />
-      <main style={{ 
-        flex: 1, 
-        padding: '2rem', 
-        backgroundColor: '#f8fafc',
-        height: '100vh',
-        overflowY: 'auto'
-      }}>
-        <Outlet />
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+        <div className="max-w-7xl mx-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

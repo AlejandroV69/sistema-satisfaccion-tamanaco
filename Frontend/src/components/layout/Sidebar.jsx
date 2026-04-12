@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -8,13 +8,23 @@ import {
   LogOut,
   ChevronDown
 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const [statsOpen, setStatsOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    console.log('Cerrando sesión...');
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // Force a hard refresh to clear all app state and prevent 'Back' button session re-entry
+      window.location.replace('/login');
+    } catch (error) {
+      console.error('Error closing session:', error.message);
+      alert('Error al cerrar sesión');
+    }
   };
 
   const toggleStats = (e) => {
