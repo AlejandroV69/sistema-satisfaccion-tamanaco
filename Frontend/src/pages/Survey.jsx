@@ -33,7 +33,7 @@ const Survey = () => {
   const [error, setError] = useState(null);
   
   const [guestInfo, setGuestInfo] = useState({
-    Nombre_completo: '',
+    nombre_completo: '',
     email: '',
     num_habitacion: '',
     fecha_llegada: '',
@@ -108,7 +108,7 @@ const Survey = () => {
       // 1. Combine country code and phone
       const finalPhone = `${guestInfo.country_code} ${guestInfo.telefono_huesped}`.trim();
       const guestData = { 
-        Nombre_completo: guestInfo.Nombre_completo,
+        nombre_completo: guestInfo.nombre_completo,
         email: guestInfo.email,
         num_habitacion: guestInfo.num_habitacion,
         fecha_llegada: guestInfo.fecha_llegada,
@@ -120,18 +120,21 @@ const Survey = () => {
       // (For this version, we always insert a "guest record" per survey or use email as unique)
       const { data: newGuest, error: guestError } = await supabase
         .from('huespedes')
-        .insert([guestData])
+        .upsert(guestData, { onConflict: 'email' })
         .select()
         .single();
 
       if (guestError) throw guestError;
 
-      // 3. Create Survey Record Header
+      // 3. Calculate Final Score and Create Survey Record Header
+      const totalScore = Object.values(answers).reduce((acc, val) => acc + val, 0);
+      const finalScore = questions.length > 0 ? (totalScore / questions.length) : 0;
+
       const { data: newSurvey, error: surveyError } = await supabase
         .from('encuestas_realizadas')
         .insert([{ 
-          huesped_id: newGuest.id_huesped,
-          fecha_realizacion: new Date().toISOString()
+          id_huesped: newGuest.id_huesped,
+          puntuacion_final: finalScore
         }])
         .select()
         .single();
@@ -140,9 +143,9 @@ const Survey = () => {
 
       // 4. Create Answer Details (Bulk Insert)
       const answerDetails = Object.entries(answers).map(([preguntaId, valor]) => ({
-        encuesta_id: newSurvey.id_encuesta,
-        pregunta_id: parseInt(preguntaId),
-        valor_respuesta: valor
+        id_encuesta: newSurvey.id_encuesta,
+        id_pregunta: preguntaId,
+        puntuacion: valor
       }));
 
       const { error: detailsError } = await supabase
@@ -212,7 +215,7 @@ const Survey = () => {
               <label className="text-sm font-semibold text-slate-600 mb-1 block">Nombre Completo</label>
               <input 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all"
-                type="text" name="Nombre_completo" value={guestInfo.Nombre_completo} onChange={handleInputChange} placeholder="Ej. Juan Pérez" required 
+                type="text" name="nombre_completo" value={guestInfo.nombre_completo} onChange={handleInputChange} placeholder="Ej. Juan Pérez" required 
               />
             </div>
             
@@ -265,7 +268,7 @@ const Survey = () => {
               <div className="relative">
                 <input 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
-                  type="date" name="fecha_llegada" value={guestInfo.fecha_llegada} onChange={handleInputChange} required 
+                  type="date" name="fecha_llegada" value={guestInfo.fecha_llegada} onChange={handleInputChange} onClick={(e) => e.target.showPicker?.()} required 
                 />
                 <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
@@ -276,7 +279,7 @@ const Survey = () => {
               <div className="relative">
                 <input 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
-                  type="date" name="fecha_salida" value={guestInfo.fecha_salida} onChange={handleInputChange} required 
+                  type="date" name="fecha_salida" value={guestInfo.fecha_salida} onChange={handleInputChange} onClick={(e) => e.target.showPicker?.()} required 
                 />
                 <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>

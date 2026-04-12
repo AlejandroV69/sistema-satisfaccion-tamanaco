@@ -24,34 +24,48 @@ const SurveyList = () => {
         .from('encuestas_realizadas')
         .select(`
           id_encuesta,
-          fecha_realizacion,
+          fecha_encuesta,
+          puntuacion_final,
+          comentarios,
           huespedes (
-            Nombre_completo,
+            nombre_completo,
             num_habitacion,
             email
           ),
           respuesta_detalle (
-            valor_respuesta
+            puntuacion
           )
         `)
-        .order('fecha_realizacion', { ascending: false });
+        .order('fecha_encuesta', { ascending: false });
+
+      console.log("Raw survey data:", data);
 
       if (error) throw error;
 
       // Transform data to calculate average satisfaction
-      const transformedData = data.map(s => {
-        const scores = s.respuesta_detalle.map(r => r.valor_respuesta);
-        const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : 0;
+      const transformedData = data?.map(s => {
+        // Handle array or object results from joins
+        const guestInfo = Array.isArray(s.huespedes) ? s.huespedes[0] : s.huespedes;
+        // Use pre-calculated score if available, otherwise calculate from details
+        let score = s.puntuacion_final;
+        if (score === null || score === undefined) {
+          const details = Array.isArray(s.respuesta_detalle) ? s.respuesta_detalle : [];
+          const scores = details.map(r => r.puntuacion || 0);
+          score = scores.length > 0 
+            ? (scores.reduce((a, b) => a + b, 0) / scores.length)
+            : 0;
+        }
         
         return {
           id: s.id_encuesta,
-          room: s.huespedes?.num_habitacion || 'N/A',
-          guest: s.huespedes?.Nombre_completo || 'Anónimo',
-          date: new Date(s.fecha_realizacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-          score: parseFloat(avg),
-          email: s.huespedes?.email
+          room: guestInfo?.num_habitacion || 'N/A',
+          guest: guestInfo?.nombre_completo || 'Anónimo',
+          date: s.fecha_encuesta ? new Date(s.fecha_encuesta).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+          score: parseFloat(Number(score).toFixed(1)),
+          email: guestInfo?.email || 'No email',
+          comment: s.comentarios || 'Sin comentarios'
         };
-      });
+      }) || [];
 
       setSurveys(transformedData);
     } catch (error) {
@@ -114,7 +128,7 @@ const SurveyList = () => {
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Huésped</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Satisfacción</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Comentarios</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -132,16 +146,16 @@ const SurveyList = () => {
                     <div className="flex items-center gap-2">
                        <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <div key={i} className={`w-2.5 h-2.5 rounded-full ${i < Math.round(survey.score) ? 'bg-accent' : 'bg-slate-200'}`} />
+                          <div key={i} className={`w-2.5 h-2.5 rounded-full ${i < Math.round(survey.score) ? 'bg-[#C5A02D]' : 'bg-slate-200'}`} />
                         ))}
                       </div>
                       <span className="text-sm font-bold text-slate-700">{survey.score}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 text-slate-300 hover:text-accent transition-colors">
-                      <MoreHorizontal size={20} />
-                    </button>
+                    <span className="text-xs font-medium text-slate-500 italic">
+                      {survey.comment}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -155,7 +169,7 @@ const SurveyList = () => {
             <div key={survey.id} className="p-5 flex flex-col gap-3">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold uppercase tracking-wider text-accent mb-1">Hab. {survey.room}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#C5A02D] mb-1">Hab. {survey.room}</span>
                   <span className="text-lg font-bold text-slate-900">{survey.guest}</span>
                 </div>
                 <div className="bg-slate-50 px-2 py-1 rounded text-xs font-bold text-slate-500">
@@ -165,7 +179,7 @@ const SurveyList = () => {
               
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-2 py-1.5 px-3 bg-slate-50 rounded-lg">
-                  <Star size={14} className="fill-accent text-accent" />
+                  <Star size={14} className="fill-[#C5A02D] text-[#C5A02D]" />
                   <span className="text-sm font-black text-slate-700">{survey.score}</span>
                 </div>
                 <Button variant="outline" size="sm" className="px-3">Ver Detalle</Button>
