@@ -136,7 +136,7 @@ const Settings = () => {
             <Card 
               key={category.id_servicio}
               title={category.nombre_servicio}
-              icon={<MessageSquare size={22} />}
+              icon={MessageSquare}
               className="flex flex-col h-full"
             >
               <div className="flex-1 space-y-4 mb-6">

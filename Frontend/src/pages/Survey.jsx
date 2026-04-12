@@ -209,7 +209,7 @@ const Survey = () => {
       )}
 
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-8">
-        <Card title="Información del Huésped" icon={<User size={22} />}>
+        <Card title="Información del Huésped" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="guest-info-field">
               <label className="text-sm font-semibold text-slate-600 mb-1 block">Nombre Completo</label>
