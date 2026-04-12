@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MoreHorizontal, Calendar, Hash, User, MapPin, Star } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Calendar, Download, User, MapPin, Star } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -89,7 +89,7 @@ const SurveyList = () => {
           <h1 className="text-3xl font-serif text-slate-900 mb-1">Gestión de Encuestas</h1>
           <p className="text-slate-500">Revisa y gestiona el feedback recibido de los huéspedes en tiempo real.</p>
         </div>
-        <Button variant="accent" onClick={() => window.print()} icon={Hash}>
+        <Button variant="accent" onClick={() => window.print()} icon={Download}>
           Exportar Reporte
         </Button>
       </header>
