@@ -72,3 +72,60 @@ p {
   margin: 0;
   font-family: var(--sans);
 }
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .sidebar, .navbar, .admin-topbar, .admin-menu-btn {
+    display: none !important;
+  }
+
+  main, .admin-main, .admin-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+    break-inside: avoid;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border-bottom: 1px solid #eee !important;
+    padding: 10px !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+}
+
+.display-none {
+  display: none;
+}
+
+/* Helper for better layouts */
+.min-h-dvh {
+  min-height: 100dvh;
+}
