@@ -48,6 +48,7 @@ const Dashboard = () => {
   });
   const [deptStats, setDeptStats] = React.useState([]);
   const [recentSurveys, setRecentSurveys] = React.useState([]);
+  const [alerts, setAlerts] = React.useState([]);
 
   React.useEffect(() => {
     fetchDashboardData();
@@ -90,7 +91,7 @@ const Dashboard = () => {
 
       // 2. Fetch Department Stats for the Chart
       const { data: categories } = await supabase.from('categorias_servicio').select('*');
-      const { data: responses } = await supabase.from('respuesta_detalle').select('puntuacion, preguntas!inner(categoria_id)');
+      const { data: responses } = await supabase.from('respuesta_detalle').select('puntuacion, preguntas!inner(categoria_id, texto_pregunta)');
 
       const safeCategories = categories || [];
       const safeResponses = responses || [];
@@ -98,11 +99,11 @@ const Dashboard = () => {
       if (safeCategories.length > 0) {
         const results = safeCategories.map(cat => {
           const catResponses = safeResponses.filter(r => r.preguntas?.categoria_id === cat.id_servicio);
-          const score = catResponses.length > 0
+          const puntuacionValue = catResponses.length > 0
             ? parseFloat((catResponses.reduce((a, b) => a + b.puntuacion, 0) / catResponses.length).toFixed(1))
             : 0;
-          return { name: cat.nombre_servicio, score };
-        }).filter(r => r.score > 0 || r.name !== '');
+          return { name: cat.nombre_servicio, puntuacion: puntuacionValue };
+        }).filter(r => r.puntuacion > 0 || r.name !== '');
         
         setDeptStats(results);
       }
@@ -118,6 +119,24 @@ const Dashboard = () => {
           date: s.fecha_encuesta ? new Date(s.fecha_encuesta).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : 'N/A'
         };
       }));
+
+      // 4. Calculate Critical Alerts (Bottom 2 Worst Questions)
+      const questionMap = {};
+      safeResponses.forEach(r => {
+         const qText = r.preguntas?.texto_pregunta;
+         const catId = r.preguntas?.categoria_id;
+         if (!qText) return;
+         if (!questionMap[qText]) questionMap[qText] = { name: qText, total: 0, count: 0, catId };
+         questionMap[qText].total += r.puntuacion;
+         questionMap[qText].count++;
+      });
+      const allQ = Object.values(questionMap).map(q => ({
+         name: q.name,
+         score: parseFloat((q.total / q.count).toFixed(1)),
+         serviceName: safeCategories.find(c => c.id_servicio === q.catId)?.nombre_servicio || 'General'
+      }));
+      const worstQ = allQ.sort((a,b) => a.score - b.score).slice(0, 3);
+      setAlerts(worstQ);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -193,7 +212,8 @@ const Dashboard = () => {
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
               />
               <Bar 
-                dataKey="score" 
+                dataKey="puntuacion" 
+                name="Puntuación"
                 radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]}
                 barSize={isMobile ? 24 : 40}
                 label={{ 
@@ -239,9 +259,15 @@ const Dashboard = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                       <div className="flex text-accent gap-0.5 mb-1">
+                       <div className="flex gap-0.5 mb-1">
                           {[...Array(5)].map((_, starIdx) => (
-                            <Star key={starIdx} size={10} fill={starIdx < survey.score ? "currentColor" : "none"} className={starIdx < survey.score ? "" : "text-slate-200"}/>
+                            <Star 
+                              key={starIdx} 
+                              size={10} 
+                              fill={starIdx < survey.score ? "#C5A02D" : "none"} 
+                              className={starIdx < survey.score ? "text-[#C5A02D]" : "text-slate-200"}
+                              strokeWidth={starIdx < survey.score ? 0 : 2}
+                            />
                           ))}
                         </div>
                         <p className="text-[10px] font-black text-slate-300 uppercase">Puntuación Final</p>
@@ -253,21 +279,36 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <Card title="Alertas de Servicio" className="bg-slate-900 text-white border-none shadow-xl shadow-[#C5A02D]/10">
-           <div className="space-y-5">
-              <div className="flex items-center gap-3 mb-2">
-                 <Activity size={20} className="text-accent" />
-                 <h4 className="text-white font-serif italic">Monitoreo en Vivo</h4>
+        <Card title="Alertas de Servicio" className="bg-slate-900 text-white border-none shadow-xl shadow-[#C5A02D]/10 relative overflow-hidden group">
+           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+             <Activity size={120} />
+           </div>
+           <div className="space-y-4 relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                 <div className="w-8 h-8 rounded-full bg-[#C5A02D]/20 flex items-center justify-center text-[#C5A02D]">
+                   <Activity size={16} />
+                 </div>
+                 <h4 className="text-white font-serif italic text-lg tracking-wide">Puntos Críticos Detectados</h4>
               </div>
-              <div className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                 <p className="text-[10px] font-black text-accent uppercase mb-2">Sugerencia del Sistema</p>
-                 <p className="text-sm text-slate-200 font-medium">Revisa las estadísticas de "Restaurante" para ver tendencias de desayuno.</p>
-              </div>
-              <div className="p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                 <p className="text-[10px] font-black text-emerald-400 uppercase mb-2">Estado General</p>
-                 <p className="text-sm text-slate-200 font-medium">La satisfacción general se mantiene estable por encima de 4.5.</p>
-              </div>
-              <Button variant="accent" className="w-full py-4 mt-4" onClick={() => navigate('/surveys')}>Gestionar Comentarios</Button>
+
+              {alerts.length === 0 ? (
+                <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
+                  <p className="text-sm text-slate-400 italic">No hay alertas críticas en este momento.</p>
+                </div>
+              ) : (
+                alerts.map((alert, i) => (
+                  <div key={i} className="p-5 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 hover:border-[#C5A02D]/50 transition-colors relative overflow-hidden">
+                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 rounded-l-2xl"></div>
+                     <div className="flex justify-between items-start mb-2">
+                       <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">{alert.serviceName}</p>
+                       <span className="bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                         Punt: {alert.score}
+                       </span>
+                     </div>
+                     <p className="text-[13px] text-slate-200 font-medium leading-relaxed">{alert.name}</p>
+                  </div>
+                ))
+              )}
            </div>
         </Card>
       </div>

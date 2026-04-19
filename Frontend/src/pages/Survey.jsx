@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, User, CheckCircle2, Calendar, AlertCircle } from 'lucide-react';
+import { Star, User, CheckCircle2, Calendar, AlertCircle, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { allCountries } from '../data/countries';
 import Button from '../components/ui/Button';
@@ -43,10 +43,38 @@ const Survey = () => {
   });
 
   const [answers, setAnswers] = useState({});
+  const [comentarios, setComentarios] = useState('');
+  const [recentComments, setRecentComments] = useState([]);
 
   useEffect(() => {
     fetchSurveyData();
+    fetchRecentComments();
   }, []);
+
+  const fetchRecentComments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('encuestas_realizadas')
+        .select(`
+          comentarios,
+          puntuacion_final,
+          fecha_encuesta,
+          huespedes (nombre_completo, num_habitacion)
+        `)
+        .not('comentarios', 'is', null)
+        .neq('comentarios', '')
+        .order('fecha_encuesta', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      
+      // Shuffle and pick 5
+      const shuffled = (data || []).sort(() => 0.5 - Math.random());
+      setRecentComments(shuffled.slice(0, 5));
+    } catch (err) {
+      console.error('Error fetching recent comments:', err);
+    }
+  };
 
   const fetchSurveyData = async () => {
     try {
@@ -117,7 +145,6 @@ const Survey = () => {
       };
 
       // 2. Insert or get Guest
-      // (For this version, we always insert a "guest record" per survey or use email as unique)
       const { data: newGuest, error: guestError } = await supabase
         .from('huespedes')
         .upsert(guestData, { onConflict: 'email' })
@@ -134,7 +161,8 @@ const Survey = () => {
         .from('encuestas_realizadas')
         .insert([{ 
           id_huesped: newGuest.id_huesped,
-          puntuacion_final: finalScore
+          puntuacion_final: finalScore,
+          comentarios: comentarios
         }])
         .select()
         .single();
@@ -205,6 +233,39 @@ const Survey = () => {
         <div className="max-w-3xl mx-auto mb-8 p-4 bg-red-50 border border-red-100 text-red-700 rounded-xl flex items-center gap-3">
           <AlertCircle size={20} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Recent Comments Section */}
+      {recentComments.length > 0 && (
+        <div className="max-w-3xl mx-auto mb-12">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-[#C5A02D] mb-6 text-center">Lo que dicen nuestros huéspedes</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recentComments.map((comment, idx) => (
+              <Card key={idx} className="bg-white/50 border-slate-100 shadow-sm overflow-hidden group">
+                <div className="flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-3">
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{comment.huespedes?.nombre_completo || 'Anónimo'} • HAB. {comment.huespedes?.num_habitacion}</span>
+                       <div className="flex gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star 
+                            key={i} 
+                            size={10} 
+                            fill={i < Math.round(comment.puntuacion_final) ? "#C5A02D" : "none"} 
+                            className={i < Math.round(comment.puntuacion_final) ? "text-[#C5A02D]" : "text-slate-200"} 
+                            strokeWidth={i < Math.round(comment.puntuacion_final) ? 0 : 2}
+                          />
+                        ))}
+                      </div>
+                  </div>
+                  <p className="text-sm text-slate-600 italic leading-relaxed">"{comment.comentarios}"</p>
+                  <div className="mt-auto pt-3 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-500">Promedio: {parseFloat(comment.puntuacion_final).toFixed(1)}</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -306,6 +367,19 @@ const Survey = () => {
            </Card>
         )}
 
+        {/* Comment Section */}
+        <Card title="Comentarios Adicionales" icon={Activity}>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500 italic">¿Hay algo más que desearía compartir con nosotros para mejorar su experiencia?</p>
+            <textarea 
+              value={comentarios}
+              onChange={(e) => setComentarios(e.target.value)}
+              placeholder="Escriba sus comentarios aquí..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 min-h-[120px] focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all text-slate-700 leading-relaxed"
+            />
+          </div>
+        </Card>
+
         {Object.keys(questions).length > 0 && (
           <Button 
             variant="accent" 
@@ -322,4 +396,4 @@ const Survey = () => {
   );
 };
 
-export default Survey;
+export default Survey;

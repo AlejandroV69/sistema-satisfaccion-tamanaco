@@ -14,7 +14,6 @@ import { supabase } from '../../lib/supabaseClient';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const [statsOpen, setStatsOpen] = useState(false);
   const location = useLocation();
 
   const handleLogout = async () => {
@@ -26,11 +25,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       console.error('Error closing session:', error.message);
       alert('Error al cerrar sesión');
     }
-  };
-
-  const toggleStats = (e) => {
-    e.preventDefault();
-    setStatsOpen(!statsOpen);
   };
 
   const handleNavClick = () => {
@@ -70,26 +64,14 @@ const Sidebar = ({ isOpen, onClose }) => {
             <span>Inicio</span>
           </NavLink>
 
-          <div className={`sidebar-item-group ${statsOpen ? 'open' : ''}`}>
-            <a 
-              href="#" 
-              className={`sidebar-link has-submenu ${statsOpen ? 'open' : ''}`}
-              onClick={toggleStats}
-            >
-              <BarChart3 size={20} />
-              <span>Estadísticas</span>
-              <ChevronDown size={16} className="chevron-icon" />
-            </a>
-            
-            {statsOpen && (
-              <div className="submenu">
-                <NavLink to="/stats/recepcion" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Recepción</NavLink>
-                <NavLink to="/stats/habitaciones" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Habitaciones</NavLink>
-                <NavLink to="/stats/restaurante" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Restaurante</NavLink>
-                <NavLink to="/stats/areas-comunes" className={({isActive}) => `submenu-link ${isActive ? 'active' : ''}`} onClick={handleNavClick}>Áreas Comunes</NavLink>
-              </div>
-            )}
-          </div>
+          <NavLink
+            to="/stats"
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
+          >
+            <BarChart3 size={20} />
+            <span>Estadísticas</span>
+          </NavLink>
 
           <NavLink
             to="/surveys"
