@@ -223,9 +223,14 @@ const Dashboard = () => {
                   fontSize: 13 
                 }}
               >
-                {deptStats.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
+                {deptStats.map((entry, index) => {
+                  let barColor = '#C5A02D'; // Dorado Premium (Excelente)
+                  if (entry.puntuacion >= 4.0) barColor = '#C5A02D';
+                  else if (entry.puntuacion >= 3.0) barColor = '#C5A059'; // Dorado apagado (Alerta Media)
+                  else barColor = '#991B1B'; // Rojo elegante (Crítico)
+                  
+                  return <Cell key={`cell-${index}`} fill={barColor} />;
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

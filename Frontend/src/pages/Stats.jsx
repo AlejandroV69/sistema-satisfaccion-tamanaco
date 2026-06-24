@@ -223,9 +223,14 @@ const Stats = () => {
             }}
           />
           <Bar dataKey="score" radius={[6, 6, 0, 0]} barSize={barWidth}>
-            {service.questions.map((entry, i) => (
-              <Cell key={i} fill="#C5A02D" />
-            ))}
+            {service.questions.map((entry, i) => {
+              let barColor = '#C5A02D'; // Dorado Premium (Excelente)
+              if (entry.score >= 4.0) barColor = '#C5A02D';
+              else if (entry.score >= 3.0) barColor = '#C5A059'; // Dorado apagado (Alerta Media)
+              else barColor = '#991B1B'; // Rojo elegante (Crítico)
+              
+              return <Cell key={i} fill={barColor} />;
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
