@@ -24,6 +24,36 @@ const ProtectedRoute = () => {
     return () => subscription.unsubscribe();
   }, [location]); // Re-run check on every route transition
 
+  // Manejo de inactividad
+  useEffect(() => {
+    if (!session) return;
+
+    // Tiempo límite de inactividad: 15 minutos
+    const TIMEOUT_MS = 15 * 60 * 1000; 
+    let lastActivityTime = Date.now();
+
+    const updateActivity = () => {
+      lastActivityTime = Date.now();
+    };
+
+    // Eventos a escuchar para resetear el contador de inactividad
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
+
+    // Verificar inactividad periódicamente
+    const interval = setInterval(async () => {
+      if (Date.now() - lastActivityTime >= TIMEOUT_MS) {
+        // Si superó el límite, cerramos la sesión
+        await supabase.auth.signOut();
+      }
+    }, 60000); // Verificar cada minuto
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, updateActivity));
+      clearInterval(interval);
+    };
+  }, [session]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
