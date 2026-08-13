@@ -135,55 +135,65 @@ const SurveyList = () => {
 
       <Card className="p-0 overflow-visible no-print">
         {/* Filters Header */}
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          {/* Search Input */}
           <div className="relative flex-1 w-full">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
               type="text" 
               placeholder="Buscar por habitación, huésped o correo..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-accent/5 focus:border-accent outline-none transition-all shadow-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-accent/5 focus:border-accent outline-none transition-all shadow-sm text-sm"
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
+
+          {/* Date & Rating Filters Row on Mobile */}
+          <div className="flex gap-2 w-full md:w-auto items-center">
+            {/* Date Filter Input */}
             <div 
-              className="relative flex-1 md:flex-none cursor-pointer"
+              className="relative flex-1 md:w-44 cursor-pointer"
               onClick={() => dateInputRef.current?.showPicker?.()}
             >
-              <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
               <input 
                 ref={dateInputRef}
                 type="date" 
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-accent/5 focus:border-accent outline-none transition-all text-sm shadow-sm"
+                className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-accent/5 focus:border-accent outline-none transition-all text-sm shadow-sm text-slate-700 font-medium appearance-none min-h-[42px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
+              {!filterDate && (
+                <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+                  Filtrar fecha
+                </span>
+              )}
             </div>
+
             {filterDate && (
-              <Button variant="outline" onClick={() => setFilterDate('')} className="px-2">
+              <Button variant="outline" onClick={() => setFilterDate('')} className="px-2.5 shrink-0 h-[42px]">
                 <X size={18} />
               </Button>
             )}
             
             {/* Custom Satisfaction Filter Dropdown */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <Button 
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowFilters(!showFilters);
                 }}
-                className={`flex-1 md:flex-none ${satisfactionFilter !== 'all' ? 'border-accent text-accent' : ''}`}
+                className={`h-[42px] px-3 flex items-center justify-center ${satisfactionFilter !== 'all' ? 'border-accent text-accent bg-accent/5' : ''}`}
               >
                 <Filter size={18} />
-                <span className="md:inline hidden">
-                  {satisfactionFilter === 'all' ? 'Filtros' : `Puntuación: ${satisfactionFilter}`}
+                <span className="ml-2 inline text-sm font-medium">
+                  {satisfactionFilter === 'all' ? 'Puntuación' : `${satisfactionFilter}.0 ★`}
                 </span>
                 {satisfactionFilter !== 'all' && (
                    <div 
                     onClick={(e) => { e.stopPropagation(); setSatisfactionFilter('all'); }}
-                    className="ml-2 hover:bg-slate-200 rounded-full p-0.5"
+                    className="ml-1.5 hover:bg-slate-200/60 rounded-full p-0.5"
                    >
                      <X size={12} />
                    </div>
@@ -192,7 +202,7 @@ const SurveyList = () => {
 
               {showFilters && (
                 <div 
-                  className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                  className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="p-3 bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-widest">
@@ -206,20 +216,20 @@ const SurveyList = () => {
                           setSatisfactionFilter(level.toString());
                           setShowFilters(false);
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm rounded-xl transition-colors flex justify-between items-center ${satisfactionFilter === level.toString() ? 'bg-accent/10 text-accent font-bold' : 'hover:bg-slate-50 text-slate-700'}`}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-xl transition-colors flex justify-between items-center ${satisfactionFilter === level.toString() ? 'bg-accent/10 text-accent font-bold' : 'hover:bg-slate-50 text-slate-700'}`}
                       >
                         <div className="flex gap-1">
                           {[...Array(5)].map((_, i) => (
                             <Star 
                               key={i} 
-                              size={10} 
+                              size={12} 
                               fill={i < level ? "#C5A02D" : "none"} 
                               className={i < level ? "text-[#C5A02D]" : "text-slate-200"} 
                               strokeWidth={i < level ? 0 : 2}
                             />
                           ))}
                         </div>
-                        <span>{level}.0</span>
+                        <span className="font-semibold">{level}.0</span>
                       </button>
                     ))}
                     <button
