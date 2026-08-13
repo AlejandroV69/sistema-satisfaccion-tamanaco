@@ -87,36 +87,11 @@ const Dashboard = () => {
         : 0;
       const feedback = safeSurveys.filter(s => s.comentarios && s.comentarios.trim() !== '').length;
 
-      // Tendencia: compara la primera mitad histórica vs la segunda mitad (siempre da número si hay ≥ 2 encuestas)
-      let tendencia = 'N/D';
-      const surveysWithDate = safeSurveys.filter(s => s.fecha_encuesta);
-      if (surveysWithDate.length >= 2) {
-        const sorted = [...surveysWithDate].sort((a, b) => new Date(a.fecha_encuesta) - new Date(b.fecha_encuesta));
-        const mid = Math.floor(sorted.length / 2);
-        const firstHalf = sorted.slice(0, mid);
-        const secondHalf = sorted.slice(mid);
-        const firstAvg = firstHalf.reduce((acc, s) => acc + (s.puntuacion_final || 0), 0) / firstHalf.length;
-        const secondAvg = secondHalf.reduce((acc, s) => acc + (s.puntuacion_final || 0), 0) / secondHalf.length;
-        if (firstAvg > 0) {
-          const change = ((secondAvg - firstAvg) / firstAvg) * 100;
-          tendencia = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
-        }
-      } else if (surveysWithDate.length === 1) {
-        tendencia = 'Primer reg.';
-      }
-
-
-
-      setStats({
-        totalEncuestas: total,
-        promedioGral: avg,   // se actualiza abajo con datos más precisos
-        comentariosCount: feedback,
-        tendencia
-      });
-
-      // 2. Fetch Department Stats for the Chart
+      // 2. Fetch Department Stats for the Chart & Detailed Trend
       const { data: categories } = await supabase.from('categorias_servicio').select('*');
-      const { data: responses } = await supabase.from('respuesta_detalle').select('puntuacion, preguntas!inner(categoria_id, texto_pregunta)');
+      const { data: responses } = await supabase
+        .from('respuesta_detalle')
+        .select('puntuacion, id_encuesta, preguntas!inner(categoria_id, texto_pregunta)');
 
       const safeCategories = categories || [];
       const safeResponses = responses || [];
@@ -125,7 +100,43 @@ const Dashboard = () => {
       const avgFromResponses = safeResponses.length > 0
         ? (safeResponses.reduce((acc, r) => acc + r.puntuacion, 0) / safeResponses.length).toFixed(1)
         : avg;
-      setStats(prev => ({ ...prev, promedioGral: avgFromResponses }));
+
+      // Calcular tendencia precisa agrupando respuestas por encuesta y ordenando por fecha
+      let tendencia = 'N/D';
+      const surveysWithDate = safeSurveys.filter(s => s.fecha_encuesta);
+      if (surveysWithDate.length >= 2) {
+        const sorted = [...surveysWithDate].sort((a, b) => new Date(a.fecha_encuesta) - new Date(b.fecha_encuesta));
+        const mid = Math.floor(sorted.length / 2);
+        const firstHalf = sorted.slice(0, mid);
+        const secondHalf = sorted.slice(mid);
+
+        // Obtener promedio exacto (con decimales crudos) para cada mitad usando respuesta_detalle
+        const getExactAvg = (halfSurveys) => {
+          const ids = new Set(halfSurveys.map(h => h.id_encuesta));
+          const matchResp = safeResponses.filter(r => ids.has(r.id_encuesta));
+          if (matchResp.length > 0) {
+            return matchResp.reduce((acc, r) => acc + r.puntuacion, 0) / matchResp.length;
+          }
+          return halfSurveys.reduce((acc, s) => acc + (s.puntuacion_final || 0), 0) / halfSurveys.length;
+        };
+
+        const firstAvg = getExactAvg(firstHalf);
+        const secondAvg = getExactAvg(secondHalf);
+
+        if (firstAvg > 0) {
+          const change = ((secondAvg - firstAvg) / firstAvg) * 100;
+          tendencia = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+        }
+      } else if (surveysWithDate.length === 1) {
+        tendencia = 'Primer reg.';
+      }
+
+      setStats({ 
+        totalEncuestas: total,
+        promedioGral: avgFromResponses,
+        comentariosCount: feedback,
+        tendencia 
+      });
 
       if (safeCategories.length > 0) {
         const results = safeCategories.map(cat => {
