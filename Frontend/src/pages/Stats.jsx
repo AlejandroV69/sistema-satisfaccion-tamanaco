@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Download,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -301,6 +302,10 @@ const Stats = () => {
     return { avg: weightedAvg, surveys: globalMetrics.surveys, positiveRate };
   })();
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-24">
       {/* Header Corporativo */}
@@ -499,10 +504,10 @@ const Stats = () => {
               if (allComments.length === 0) return <p className="text-slate-400 italic">No hay comentarios para mostrar.</p>;
               const com = allComments[0]; // Solo muestra el primer comentario general
               return (
-                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 relative group transition-all">
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{com.guest} • Habitación {com.room}</span>
-                    <div className="flex text-[#C5A02D] gap-1">
+                <div className="bg-slate-50 p-5 sm:p-8 rounded-3xl border border-slate-100 relative group transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest break-words">{com.guest} • Habitación {com.room}</span>
+                    <div className="flex text-[#C5A02D] gap-1 flex-shrink-0">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
@@ -514,7 +519,7 @@ const Stats = () => {
                       ))}
                     </div>
                   </div>
-                  <p className="text-slate-700 font-serif italic text-xl leading-relaxed">"{com.text}"</p>
+                  <p className="text-slate-700 font-serif italic text-lg sm:text-xl leading-relaxed">"{com.text}"</p>
                 </div>
               );
             })()}
@@ -534,20 +539,26 @@ const Stats = () => {
               if (worstQuestions.length === 0) return <p className="text-slate-400 italic font-serif">Aún no hay suficientes datos registrados.</p>;
 
               return worstQuestions.map((q, iidx) => (
-                <div key={iidx} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-red-50/40 rounded-2xl border border-red-100/50 group hover:bg-red-50 hover:border-red-200 transition-all shadow-sm">
-                  <div className="flex gap-4 items-center">
-                    <div className="w-10 h-10 rounded-full bg-white flex flex-col items-center justify-center border border-red-100 shadow-sm text-red-500">
-                      <span className="text-[10px] font-black uppercase tracking-widest leading-none">Sat</span>
-                      <span className="text-sm font-black leading-none">{q.score}</span>
+                <div key={iidx} className="p-4 sm:p-5 bg-red-50/50 rounded-2xl border border-red-100/70 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-11 h-11 flex-shrink-0 rounded-2xl bg-white flex flex-col items-center justify-center border border-red-200/60 shadow-sm text-red-600 mt-0.5 sm:mt-0">
+                      <span className="text-[9px] font-black uppercase tracking-widest leading-none text-red-400">Sat</span>
+                      <span className="text-base font-black leading-none text-red-600 mt-0.5">{q.score}</span>
                     </div>
-                    <div>
-                      <p className="text-[15px] font-bold text-slate-800 line-clamp-2 md:line-clamp-1 max-w-lg mb-1">{q.name}</p>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{q.serviceName}</p>
+                    <div className="flex-1 min-w-0">
+                      <span className="inline-block text-[10px] font-black text-red-500 uppercase tracking-widest mb-1 bg-red-100/60 px-2 py-0.5 rounded-md">
+                        {q.serviceName}
+                      </span>
+                      <p className="text-sm sm:text-[15px] font-semibold text-slate-800 leading-snug">
+                        {q.name}
+                      </p>
                     </div>
                   </div>
-                  <span className="flex-shrink-0 self-start md:self-auto text-[10px] font-black text-red-600 uppercase tracking-[0.2em] px-4 py-2 bg-white rounded-full border border-red-200 shadow-sm ml-14 md:ml-0">
-                    Revisar
-                  </span>
+                  <div className="flex justify-end sm:justify-center flex-shrink-0 pt-1 sm:pt-0">
+                    <span className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em] px-3 py-1 bg-white rounded-xl border border-red-200 shadow-xs">
+                      Atención Prioritaria
+                    </span>
+                  </div>
                 </div>
               ));
             })()}

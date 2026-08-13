@@ -356,33 +356,30 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <Card title="Alertas de Servicio" className="bg-slate-900 text-white border-none shadow-xl shadow-[#C5A02D]/10 relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-             <Activity size={120} />
-           </div>
+        <Card title="Alertas de Servicio" className="shadow-xl shadow-slate-100 relative overflow-hidden group">
            <div className="space-y-4 relative z-10">
               <div className="flex items-center gap-3 mb-4">
-                 <div className="w-8 h-8 rounded-full bg-[#C5A02D]/20 flex items-center justify-center text-[#C5A02D]">
+                 <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600">
                    <Activity size={16} />
                  </div>
-                 <h4 className="text-white font-serif italic text-lg tracking-wide">Puntos Críticos Detectados</h4>
+                 <h4 className="text-slate-900 font-serif italic text-lg tracking-wide font-bold">Puntos Críticos Detectados</h4>
               </div>
 
               {alerts.length === 0 ? (
-                <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
                   <p className="text-sm text-slate-400 italic">No hay alertas críticas en este momento.</p>
                 </div>
               ) : (
                 alerts.map((alert, i) => (
-                  <div key={i} className="p-5 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 hover:border-[#C5A02D]/50 transition-colors relative overflow-hidden">
-                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 rounded-l-2xl"></div>
-                     <div className="flex justify-between items-start mb-2">
-                       <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">{alert.serviceName}</p>
-                       <span className="bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                  <div key={i} className="p-4 sm:p-5 bg-red-50/50 rounded-2xl border border-red-100 hover:border-red-200 transition-colors relative overflow-hidden">
+                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500 rounded-l-2xl"></div>
+                     <div className="flex justify-between items-center mb-2 pl-2">
+                       <p className="text-[10px] font-black text-red-600 uppercase tracking-widest bg-red-100 px-2 py-0.5 rounded">{alert.serviceName}</p>
+                       <span className="bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider shadow-xs">
                          Punt: {alert.score}
                        </span>
                      </div>
-                     <p className="text-[13px] text-slate-200 font-medium leading-relaxed">{alert.name}</p>
+                     <p className="text-sm text-slate-800 font-bold leading-snug pl-2">{alert.name}</p>
                   </div>
                 ))
               )}
