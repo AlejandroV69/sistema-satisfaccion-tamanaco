@@ -5,10 +5,13 @@ import {
   Star, 
   MessageSquare, 
   TrendingUp,
+  TrendingDown,
   User,
   Activity,
   ArrowRight,
-  BarChart3 as BarChartIcon
+  BarChart3 as BarChartIcon,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -49,6 +52,7 @@ const Dashboard = () => {
   const [deptStats, setDeptStats] = React.useState([]);
   const [recentSurveys, setRecentSurveys] = React.useState([]);
   const [alerts, setAlerts] = React.useState([]);
+  const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
     fetchDashboardData();
@@ -57,6 +61,7 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       // 1. Fetch Global Summary and Recent Activity
       const { data: surveys, error: surveyError } = await supabase
@@ -82,11 +87,31 @@ const Dashboard = () => {
         : 0;
       const feedback = safeSurveys.filter(s => s.comentarios && s.comentarios.trim() !== '').length;
 
+      // Tendencia: compara la primera mitad histórica vs la segunda mitad (siempre da número si hay ≥ 2 encuestas)
+      let tendencia = 'N/D';
+      const surveysWithDate = safeSurveys.filter(s => s.fecha_encuesta);
+      if (surveysWithDate.length >= 2) {
+        const sorted = [...surveysWithDate].sort((a, b) => new Date(a.fecha_encuesta) - new Date(b.fecha_encuesta));
+        const mid = Math.floor(sorted.length / 2);
+        const firstHalf = sorted.slice(0, mid);
+        const secondHalf = sorted.slice(mid);
+        const firstAvg = firstHalf.reduce((acc, s) => acc + (s.puntuacion_final || 0), 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((acc, s) => acc + (s.puntuacion_final || 0), 0) / secondHalf.length;
+        if (firstAvg > 0) {
+          const change = ((secondAvg - firstAvg) / firstAvg) * 100;
+          tendencia = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+        }
+      } else if (surveysWithDate.length === 1) {
+        tendencia = 'Primer reg.';
+      }
+
+
+
       setStats({
         totalEncuestas: total,
-        promedioGral: avg,
+        promedioGral: avg,   // se actualiza abajo con datos más precisos
         comentariosCount: feedback,
-        tendencia: total > 0 ? '+2.4%' : '+0%' 
+        tendencia
       });
 
       // 2. Fetch Department Stats for the Chart
@@ -95,6 +120,12 @@ const Dashboard = () => {
 
       const safeCategories = categories || [];
       const safeResponses = responses || [];
+
+      // Recalcular promedio desde respuestas individuales (más preciso, igual que Stats)
+      const avgFromResponses = safeResponses.length > 0
+        ? (safeResponses.reduce((acc, r) => acc + r.puntuacion, 0) / safeResponses.length).toFixed(1)
+        : avg;
+      setStats(prev => ({ ...prev, promedioGral: avgFromResponses }));
 
       if (safeCategories.length > 0) {
         const results = safeCategories.map(cat => {
@@ -138,8 +169,9 @@ const Dashboard = () => {
       const worstQ = allQ.sort((a,b) => a.score - b.score).slice(0, 3);
       setAlerts(worstQ);
 
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('No se pudieron cargar los datos del panel. Verifica tu conexión a Supabase e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -147,12 +179,41 @@ const Dashboard = () => {
 
   const COLORS = ['#C5A02D', '#D4AF37', '#B8860B', '#DAA520'];
 
+  const isPositive = stats.tendencia.startsWith('+');
+  const isNegative = stats.tendencia.startsWith('-');
+
   const quickStats = [
-    { label: 'Encuestas Totales', value: stats.totalEncuestas.toString(), icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Promedio Sat.', value: stats.promedioGral.toString(), icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { label: 'Nuevos Comentarios', value: stats.comentariosCount.toString(), icon: MessageSquare, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { label: 'Tendencia Mensual', value: stats.tendencia, icon: TrendingUp, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+    { label: 'Encuestas Totales', value: stats.totalEncuestas.toString(), icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50', valueColor: 'text-slate-900' },
+    { label: 'Promedio Sat.', value: stats.promedioGral.toString(), icon: Star, color: 'text-amber-500', bg: 'bg-amber-50', valueColor: 'text-slate-900' },
+    { label: 'Nuevos Comentarios', value: stats.comentariosCount.toString(), icon: MessageSquare, color: 'text-emerald-500', bg: 'bg-emerald-50', valueColor: 'text-slate-900' },
+    {
+      label: 'Tendencia Histórica',
+      value: stats.tendencia,
+      icon: isNegative ? TrendingDown : TrendingUp,
+      color: isNegative ? 'text-red-500' : isPositive ? 'text-emerald-500' : 'text-indigo-500',
+      bg: isNegative ? 'bg-red-50' : isPositive ? 'bg-emerald-50' : 'bg-indigo-50',
+      valueColor: isNegative ? 'text-red-500' : isPositive ? 'text-emerald-600' : 'text-slate-900',
+    },
   ];
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+          <AlertCircle size={36} />
+        </div>
+        <h2 className="text-2xl font-serif text-slate-900 mb-3">Error al cargar el panel</h2>
+        <p className="text-slate-500 mb-8 max-w-md leading-relaxed">{error}</p>
+        <button
+          onClick={fetchDashboardData}
+          className="flex items-center gap-3 px-8 py-3.5 bg-[#C5A02D] text-white rounded-full font-bold hover:bg-slate-900 transition-all duration-300 shadow-lg shadow-amber-200"
+        >
+          <RefreshCw size={18} />
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -175,7 +236,7 @@ const Dashboard = () => {
               <stat.icon size={24} />
             </div>
             <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">{stat.label}</p>
-            <h3 className="text-3xl font-bold text-slate-900">{stat.value}</h3>
+            <h3 className={`text-3xl font-bold ${stat.valueColor || 'text-slate-900'}`}>{stat.value}</h3>
           </Card>
         ))}
       </div>

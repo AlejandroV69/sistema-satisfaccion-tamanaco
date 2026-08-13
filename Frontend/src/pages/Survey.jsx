@@ -161,7 +161,7 @@ const Survey = () => {
         .from('encuestas_realizadas')
         .insert([{ 
           id_huesped: newGuest.id_huesped,
-          puntuacion_final: finalScore,
+          puntuacion_final: Math.round(finalScore),
           comentarios: comentarios
         }])
         .select()

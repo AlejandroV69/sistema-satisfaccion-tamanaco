@@ -13,7 +13,9 @@ import {
   Map,
   ConciergeBell,
   ChevronDown,
-  Download
+  Download,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -49,9 +51,10 @@ const Stats = () => {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [serviceStats, setServiceStats] = useState([]);
-  const [globalMetrics, setGlobalMetrics] = useState({ avg: 0, total: 0, surveys: 0 });
+  const [globalMetrics, setGlobalMetrics] = useState({ avg: 0, total: 0, surveys: 0, positiveRate: '0%' });
   const [dateFilter, setDateFilter] = useState('all'); // '7', '30', 'all'
   const [serviceFilter, setServiceFilter] = useState('all');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchAllStats();
@@ -60,6 +63,7 @@ const Stats = () => {
   const fetchAllStats = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       const { data: cats, error: catsErr } = await supabase.from('categorias_servicio').select('*');
       if (catsErr) throw catsErr;
@@ -105,10 +109,24 @@ const Stats = () => {
         ? (safeResponses.reduce((acc, r) => acc + r.puntuacion, 0) / totalResponses).toFixed(1)
         : 0;
 
+      // Tasa de Satisfacción Positiva: % de encuestas con puntuación final >= 4
+      const surveyScoreMap = {};
+      safeResponses.forEach(r => {
+        if (!surveyScoreMap[r.id_encuesta] && r.encuestas_realizadas) {
+          surveyScoreMap[r.id_encuesta] = r.encuestas_realizadas.puntuacion_final;
+        }
+      });
+      const allSurveyScores = Object.values(surveyScoreMap);
+      const positiveCount = allSurveyScores.filter(s => s >= 4).length;
+      const positiveRate = allSurveyScores.length > 0
+        ? `${Math.round((positiveCount / allSurveyScores.length) * 100)}%`
+        : '—';
+
       setGlobalMetrics({
         avg: globalAvg,
         total: totalResponses,
-        surveys: uniqueSurveys
+        surveys: uniqueSurveys,
+        positiveRate
       });
 
       // Calculate Stats per Service
@@ -176,7 +194,7 @@ const Stats = () => {
             { name: 'Baj', value: distribution[2], color: '#F1D27C' },
             { name: 'Cri', value: distribution[1], color: '#F9E4A0' }
           ].filter(d => d.value > 0),
-          trend: Object.values(trendMap).sort((a, b) => new Date(a.date) - new Date(b.date)).map(d => ({ name: d.date, score: (d.total / d.count).toFixed(1) })).slice(-5)
+          trend: Object.values(trendMap).sort((a, b) => new Date(a.date) - new Date(b.date)).map(d => ({ name: d.date, score: parseFloat((d.total / d.count).toFixed(1)) })).slice(-7)
         };
       });
 
@@ -184,6 +202,7 @@ const Stats = () => {
 
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
+      setError('No se pudieron cargar las estadísticas. Verifica tu conexión a Supabase e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -239,7 +258,48 @@ const Stats = () => {
 
   if (loading) return <Loader fullPage message="Generando Reporte Maestro..." />;
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+          <AlertCircle size={36} />
+        </div>
+        <h2 className="text-2xl font-serif text-slate-900 mb-3">Error al cargar estadísticas</h2>
+        <p className="text-slate-500 mb-8 max-w-md leading-relaxed">{error}</p>
+        <button
+          onClick={fetchAllStats}
+          className="flex items-center gap-3 px-8 py-3.5 bg-[#C5A02D] text-white rounded-full font-bold hover:bg-slate-900 transition-all duration-300 shadow-lg shadow-amber-200"
+        >
+          <RefreshCw size={18} />
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   const filteredServices = serviceStats.filter(s => serviceFilter === 'all' || String(s.id) === String(serviceFilter));
+
+  // KPIs react al filtro de servicio activo
+  const displayMetrics = (() => {
+    if (serviceFilter === 'all' || filteredServices.length === 0) return globalMetrics;
+
+    // Promedio ponderado de los servicios filtrados
+    const weightedAvg = filteredServices.length > 0
+      ? (filteredServices.reduce((acc, s) => acc + parseFloat(s.avg || 0), 0) / filteredServices.length).toFixed(1)
+      : '—';
+
+    // Encuestas únicas que evaluaron este servicio
+    const totalSurveys = filteredServices.reduce((acc, s) => acc + s.responsesCount, 0);
+
+    // Satisfacción positiva: % de respuestas con score 4 o 5 (Exc + Bue en el pie)
+    const posCount = filteredServices.flatMap(s => s.pie)
+      .filter(p => p.name === 'Exc' || p.name === 'Bue')
+      .reduce((acc, p) => acc + p.value, 0);
+    const totCount = filteredServices.flatMap(s => s.pie).reduce((acc, p) => acc + p.value, 0);
+    const positiveRate = totCount > 0 ? `${Math.round((posCount / totCount) * 100)}%` : '—';
+
+    return { avg: weightedAvg, surveys: globalMetrics.surveys, positiveRate };
+  })();
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-24">
@@ -287,9 +347,9 @@ const Stats = () => {
       {/* KPIs Principales - Estilo exacto del mockup */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
-          { label: 'Promedio del Servicio', value: globalMetrics.avg, icon: Star },
-          { label: 'Respuestas Totales', value: globalMetrics.surveys, icon: Users },
-          { label: 'Tasa de Referencia', value: '94%', icon: TrendingUp }
+          { label: 'Promedio del Servicio', value: displayMetrics.avg, icon: Star },
+          { label: 'Encuestas Registradas', value: displayMetrics.surveys, icon: Users },
+          { label: 'Satisfacción Positiva', value: displayMetrics.positiveRate, icon: TrendingUp }
         ].map((kpi, kidx) => (
           <div key={kidx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px]">
             <div className="w-12 h-12 bg-[#faf9f6] rounded-2xl flex items-center justify-center text-[#C5A02D] mb-4">
@@ -302,6 +362,72 @@ const Stats = () => {
           </div>
         ))}
       </div>
+
+      {/* Tendencia Temporal por Servicio */}
+      {filteredServices.some(s => s.trend.length >= 2) && (
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <span className="w-10 h-[1px] bg-accent"></span>
+            <span className="text-[11px] font-black uppercase tracking-[0.5em] text-accent">Evolución Histórica</span>
+          </div>
+          <div className={`grid grid-cols-1 ${serviceFilter === 'all' ? 'lg:grid-cols-2' : ''} gap-8 mb-8`}>
+            {filteredServices.map((service) => (
+              <Card
+                key={`trend-${service.id}`}
+                title={`Tendencia — ${service.name}`}
+                icon={() => getServiceIcon(service.name)}
+                className="hover:shadow-2xl transition-shadow duration-500 border-none bg-white shadow-xl shadow-slate-100"
+                headerAction={<TrendingUp size={16} className="text-[#C5A02D]" />}
+              >
+                <div className={`${serviceFilter === 'all' ? 'h-[160px]' : 'h-[240px]'} w-full mt-4`}>
+                  {service.trend.length < 2 ? (
+                    <div className="h-full flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 italic text-slate-400 text-sm">
+                      Insuficientes datos históricos
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={service.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id={`grad-${service.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#C5A02D" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#C5A02D" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#cbd5e1', fontWeight: 600 }} />
+                        <YAxis hide domain={[1, 5]} />
+                        <Tooltip
+                          cursor={{ stroke: '#C5A02D', strokeWidth: 1, strokeDasharray: '4 4' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white p-3 rounded-xl shadow-lg border border-slate-100 z-50">
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{payload[0].payload.name}</p>
+                                  <p className="text-sm font-black text-[#C5A02D]">Promedio: {payload[0].value}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="score"
+                          stroke="#C5A02D"
+                          strokeWidth={2.5}
+                          fill={`url(#grad-${service.id})`}
+                          dot={{ fill: '#C5A02D', strokeWidth: 0, r: 3.5 }}
+                          activeDot={{ r: 6, fill: '#C5A02D', strokeWidth: 0 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid de Servicios - 2x2 o Full Width */}
       <div className={`grid grid-cols-1 ${serviceFilter === 'all' ? 'lg:grid-cols-2' : ''} gap-8 mb-12`}>
