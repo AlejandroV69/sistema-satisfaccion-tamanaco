@@ -248,7 +248,7 @@ const Stats = () => {
               if (entry.score >= 4.0) barColor = '#C5A02D';
               else if (entry.score >= 3.0) barColor = '#C5A059'; // Dorado apagado (Alerta Media)
               else barColor = '#991B1B'; // Rojo elegante (Crítico)
-              
+
               return <Cell key={i} fill={barColor} />;
             })}
           </Bar>
@@ -315,8 +315,8 @@ const Stats = () => {
             <span className="w-10 h-[1px] bg-accent"></span>
             <span className="text-[11px] font-black uppercase tracking-[0.5em] text-accent">Inteligencia de Negocio</span>
           </div>
-          <h1 className="text-5xl font-serif text-slate-900">Resumen Gerencial</h1>
-          <p className="text-slate-500 mt-2 text-lg">Estado global de la satisfacción y calidad en Hotel Tamanaco.</p>
+          <h1 className="text-4xl font-serif text-slate-900 mb-2">Resumen Gerencial</h1>
+          <p className="text-slate-500 text-base">Estado global de la satisfacción y calidad en Hotel Tamanaco.</p>
         </div>
 
         <div className="flex flex-wrap gap-4">
@@ -521,8 +521,10 @@ const Stats = () => {
         </Card>
 
         <Card title="Puntos Críticos (Atención Prioritaria)" className="p-10 border-t-4 border-l-[0px] border-t-red-500 shadow-xl shadow-slate-100">
-          <p className="text-sm text-slate-400 mb-8 font-medium">Las evaluaciones con el promedio más bajo en todo el hotel que requieren revisión urgente.</p>
-          <div className="space-y-4">
+          <p className="text-sm text-slate-400 mb-6 font-medium leading-relaxed">
+            Las evaluaciones con el promedio más bajo en todo el hotel que requieren revisión urgente.
+          </p>
+          <div className="space-y-4 pt-2">
             {(() => {
               // Extraer todas las preguntas de los servicios visibles y ordenarlas globalmente por peor puntaje
               const allQuestions = filteredServices.flatMap(s =>
@@ -559,19 +561,17 @@ const Stats = () => {
           </div>
         </Card>
 
-        <div className="no-print mt-8 flex flex-col items-center">
+        <div className="no-print mt-12 mb-8 flex flex-col items-center gap-6">
           <Button
             variant="accent"
-            className="w-full md:w-auto md:min-w-[400px] py-6 bg-[#C5A02D] hover:bg-slate-900 text-white shadow-2xl shadow-accent/20 rounded-full font-black tracking-[0.2em] uppercase flex items-center justify-center gap-4 group transition-all duration-300 overflow-hidden relative"
+            className="w-full md:w-auto md:min-w-[400px] py-5 bg-[#C5A02D] hover:bg-slate-900 text-white shadow-xl shadow-amber-500/20 rounded-full font-black tracking-[0.2em] uppercase flex items-center justify-center gap-4 group transition-all duration-300"
             onClick={() => window.print()}
           >
-            <div className="absolute inset-0 bg-slate-900 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <span className="relative z-10 flex items-center justify-center gap-3 w-full">
-              <Download size={20} />
-              Exportar Reporte
-            </span>
+            <Download size={20} />
+            Exportar Reporte
           </Button>
-          <p className="text-[11px] text-slate-400 text-center mt-6 font-bold uppercase tracking-[0.1em] italic leading-relaxed">
+
+          <p className="text-[11px] text-slate-400 text-center leading-relaxed font-bold uppercase tracking-[0.1em] italic max-w-xl">
             Este reporte genera un documento legal y administrativo <br className="hidden md:block" /> consolidando todos los indicadores del Hotel Tamanaco.
           </p>
         </div>

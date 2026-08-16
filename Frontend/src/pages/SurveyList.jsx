@@ -118,8 +118,8 @@ const SurveyList = () => {
     <div className="space-y-6 pb-20" onClick={() => setShowFilters(false)}>
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
         <div>
-          <h1 className="text-3xl font-serif text-slate-900 mb-1">Gestión de Encuestas</h1>
-          <p className="text-slate-500">Revisa y gestiona el feedback recibido de los huéspedes en tiempo real.</p>
+          <h1 className="text-4xl font-serif text-slate-900 mb-2">Gestión de Encuestas</h1>
+          <p className="text-slate-500 text-base">Revisa y gestiona el feedback recibido de los huéspedes en tiempo real.</p>
         </div>
         <Button variant="accent" onClick={handleExportPDF} icon={Download}>
           Exportar Reporte

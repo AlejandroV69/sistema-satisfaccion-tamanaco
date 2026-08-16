@@ -369,13 +369,15 @@ const Survey = () => {
 
         {/* Comment Section */}
         <Card title="Comentarios Adicionales" icon={Activity}>
-          <div className="space-y-4">
-            <p className="text-sm text-slate-500 italic">¿Hay algo más que desearía compartir con nosotros para mejorar su experiencia?</p>
+          <div className="pt-2">
+            <p className="text-sm sm:text-base text-slate-600 font-medium mb-6 leading-relaxed block">
+              ¿Hay algo más que desearía compartir con nosotros para mejorar su experiencia?
+            </p>
             <textarea 
               value={comentarios}
               onChange={(e) => setComentarios(e.target.value)}
               placeholder="Escriba sus comentarios aquí..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 min-h-[120px] focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all text-slate-700 leading-relaxed"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 min-h-[130px] focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all text-slate-700 leading-relaxed text-sm mt-2"
             />
           </div>
         </Card>

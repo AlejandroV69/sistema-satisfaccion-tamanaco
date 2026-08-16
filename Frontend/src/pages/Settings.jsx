@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Plus, Trash2, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, Edit3, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -13,6 +13,18 @@ const Settings = () => {
   const [addingToCategory, setAddingToCategory] = useState(null); // ID of category currently adding to
   const [newQuestionTexts, setNewQuestionTexts] = useState({}); // { categoryId: 'text' }
   const [message, setMessage] = useState({ text: '', type: '' });
+
+  // Estado para creación de categorías
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+
+  // Estado para edición de categorías
+  const [editingCategory, setEditingCategory] = useState(null); // objeto categoría o null
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryDescription, setEditCategoryDescription] = useState('');
+  const [updatingCategory, setUpdatingCategory] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -109,10 +121,6 @@ const Settings = () => {
     setNewQuestionTexts(prev => ({ ...prev, [categoryId]: value }));
   };
 
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [addingCategory, setAddingCategory] = useState(false);
-
   const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -123,7 +131,7 @@ const Settings = () => {
         .from('categorias_servicio')
         .insert([{ 
           nombre_servicio: newCategoryName.trim(),
-          descripcion_servicio: newCategoryName.trim()
+          descripcion_servicio: newCategoryDescription.trim() || newCategoryName.trim()
         }])
         .select();
 
@@ -132,6 +140,7 @@ const Settings = () => {
       if (data && data.length > 0) {
         setCategories(prev => [...prev, data[0]]);
         setNewCategoryName('');
+        setNewCategoryDescription('');
         setShowAddCategoryModal(false);
         showStatus('Servicio/Evento añadido correctamente', 'success');
       }
@@ -140,6 +149,42 @@ const Settings = () => {
       showStatus(`Error: ${error.message}`, 'error');
     } finally {
       setAddingCategory(false);
+    }
+  };
+
+  const handleOpenEditCategory = (category) => {
+    setEditingCategory(category);
+    setEditCategoryName(category.nombre_servicio || '');
+    setEditCategoryDescription(category.descripcion_servicio || '');
+  };
+
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!editingCategory || !editCategoryName.trim()) return;
+
+    try {
+      setUpdatingCategory(true);
+      const { data, error } = await supabase
+        .from('categorias_servicio')
+        .update({
+          nombre_servicio: editCategoryName.trim(),
+          descripcion_servicio: editCategoryDescription.trim() || editCategoryName.trim()
+        })
+        .eq('id_servicio', editingCategory.id_servicio)
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setCategories(prev => prev.map(c => c.id_servicio === editingCategory.id_servicio ? data[0] : c));
+        setEditingCategory(null);
+        showStatus('Servicio/Evento actualizado correctamente', 'success');
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      showStatus(`Error al actualizar: ${error.message}`, 'error');
+    } finally {
+      setUpdatingCategory(false);
     }
   };
 
@@ -171,7 +216,6 @@ const Settings = () => {
           .eq('categoria_id', categoryId);
 
         if (qDeleteErr) {
-          // Si las preguntas no se pueden eliminar por FK de respuestas antiguas, desvincular la categoria_id poniéndola en null o desactivando
           await supabase.from('preguntas').update({ categoria_id: null, activa: false }).eq('categoria_id', categoryId);
         }
       }
@@ -241,6 +285,12 @@ const Settings = () => {
                 required
                 autoFocus
               />
+              <Input
+                label="Descripción del Servicio"
+                placeholder="Breve detalle o alcance del servicio..."
+                value={newCategoryDescription}
+                onChange={(e) => setNewCategoryDescription(e.target.value)}
+              />
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   type="button"
@@ -248,6 +298,7 @@ const Settings = () => {
                   onClick={() => {
                     setShowAddCategoryModal(false);
                     setNewCategoryName('');
+                    setNewCategoryDescription('');
                   }}
                 >
                   Cancelar
@@ -265,6 +316,49 @@ const Settings = () => {
         </div>
       )}
 
+      {/* Modal para Editar Servicio */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-serif text-slate-900 mb-2">Editar Servicio / Evento</h2>
+            <p className="text-slate-500 text-sm mb-6">Modifica el nombre y la descripción de este departamento o evento.</p>
+            
+            <form onSubmit={handleUpdateCategory} className="space-y-4">
+              <Input
+                label="Nombre del Servicio / Evento"
+                placeholder="Ej. Restaurante, Evento Corporativo, Spa..."
+                value={editCategoryName}
+                onChange={(e) => setEditCategoryName(e.target.value)}
+                required
+                autoFocus
+              />
+              <Input
+                label="Descripción del Servicio"
+                placeholder="Ej. Evaluación de áreas de spa, sauna y masajes..."
+                value={editCategoryDescription}
+                onChange={(e) => setEditCategoryDescription(e.target.value)}
+              />
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingCategory(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="accent"
+                  loading={updatingCategory}
+                >
+                  Guardar Cambios
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {categories.map((category) => {
           const catQuestions = questions.filter(q => q.categoria_id === category.id_servicio);
@@ -275,17 +369,36 @@ const Settings = () => {
               title={category.nombre_servicio}
               icon={MessageSquare}
               headerAction={
-                <button
-                  onClick={() => handleDeleteCategory(category.id_servicio, category.nombre_servicio)}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-medium"
-                  title="Eliminar servicio"
-                >
-                  <Trash2 size={16} />
-                  <span>Eliminar</span>
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleOpenEditCategory(category)}
+                    className="p-1.5 text-slate-400 hover:text-accent hover:bg-slate-50 rounded-lg transition-all flex items-center gap-1 text-xs font-medium"
+                    title="Editar servicio"
+                  >
+                    <Edit3 size={16} />
+                    <span>Editar</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id_servicio, category.nombre_servicio)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center gap-1 text-xs font-medium"
+                    title="Eliminar servicio"
+                  >
+                    <Trash2 size={16} />
+                    <span>Eliminar</span>
+                  </button>
+                </div>
               }
               className="flex flex-col h-full"
             >
+              {category.descripcion_servicio && category.descripcion_servicio !== category.nombre_servicio && (
+                <div className="mb-5 p-3 bg-slate-50/80 border border-slate-100 rounded-xl flex items-start gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent/60 mt-1.5 shrink-0" />
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    {category.descripcion_servicio}
+                  </p>
+                </div>
+              )}
+
               <div className="flex-1 space-y-4 mb-6">
                 {catQuestions.length === 0 ? (
                   <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
