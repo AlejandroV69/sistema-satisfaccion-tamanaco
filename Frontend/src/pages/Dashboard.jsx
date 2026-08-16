@@ -91,7 +91,7 @@ const Dashboard = () => {
       const { data: categories } = await supabase.from('categorias_servicio').select('*');
       const { data: responses } = await supabase
         .from('respuesta_detalle')
-        .select('puntuacion, id_encuesta, preguntas!inner(categoria_id, texto_pregunta)');
+        .select('puntuacion, id_encuesta, preguntas!inner(categoria_id, texto_pregunta, activa)');
 
       const safeCategories = categories || [];
       const safeResponses = responses || [];
@@ -144,8 +144,8 @@ const Dashboard = () => {
           const puntuacionValue = catResponses.length > 0
             ? parseFloat((catResponses.reduce((a, b) => a + b.puntuacion, 0) / catResponses.length).toFixed(1))
             : 0;
-          return { name: cat.nombre_servicio, puntuacion: puntuacionValue };
-        }).filter(r => r.puntuacion > 0 || r.name !== '');
+          return { name: cat.nombre_servicio, puntuacion: puntuacionValue, id: cat.id_servicio };
+        }).filter(r => r.puntuacion > 0);
         
         setDeptStats(results);
       }

@@ -197,7 +197,7 @@ const Stats = () => {
           ].filter(d => d.value > 0),
           trend: Object.values(trendMap).sort((a, b) => new Date(a.date) - new Date(b.date)).map(d => ({ name: d.date, score: parseFloat((d.total / d.count).toFixed(1)) })).slice(-7)
         };
-      });
+      }).filter(cat => cat.total > 0 || cat.questions.length > 0);
 
       setServiceStats(stats);
 
@@ -340,8 +340,8 @@ const Stats = () => {
               className="appearance-none bg-white border border-slate-200 rounded-2xl px-6 py-3.5 pr-14 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-accent/5 transition-all shadow-sm group-hover:border-accent/40"
             >
               <option value="all">Todos los Servicios</option>
-              {categories.map(cat => (
-                <option key={cat.id_servicio} value={String(cat.id_servicio)}>{cat.nombre_servicio}</option>
+              {serviceStats.map(cat => (
+                <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
               ))}
             </select>
             <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-accent" />
@@ -376,7 +376,7 @@ const Stats = () => {
             <span className="text-[11px] font-black uppercase tracking-[0.5em] text-accent">Evolución Histórica</span>
           </div>
           <div className={`grid grid-cols-1 ${serviceFilter === 'all' ? 'lg:grid-cols-2' : ''} gap-8 mb-8`}>
-            {filteredServices.map((service) => (
+            {filteredServices.filter(s => s.trend.length >= 2).map((service) => (
               <Card
                 key={`trend-${service.id}`}
                 title={`Tendencia — ${service.name}`}
@@ -385,48 +385,42 @@ const Stats = () => {
                 headerAction={<TrendingUp size={16} className="text-[#C5A02D]" />}
               >
                 <div className={`${serviceFilter === 'all' ? 'h-[160px]' : 'h-[240px]'} w-full mt-4`}>
-                  {service.trend.length < 2 ? (
-                    <div className="h-full flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 italic text-slate-400 text-sm">
-                      Insuficientes datos históricos
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={service.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id={`grad-${service.id}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#C5A02D" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#C5A02D" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#cbd5e1', fontWeight: 600 }} />
-                        <YAxis hide domain={[1, 5]} />
-                        <Tooltip
-                          cursor={{ stroke: '#C5A02D', strokeWidth: 1, strokeDasharray: '4 4' }}
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-white p-3 rounded-xl shadow-lg border border-slate-100 z-50">
-                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{payload[0].payload.name}</p>
-                                  <p className="text-sm font-black text-[#C5A02D]">Promedio: {payload[0].value}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#C5A02D"
-                          strokeWidth={2.5}
-                          fill={`url(#grad-${service.id})`}
-                          dot={{ fill: '#C5A02D', strokeWidth: 0, r: 3.5 }}
-                          activeDot={{ r: 6, fill: '#C5A02D', strokeWidth: 0 }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={service.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={`grad-${service.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C5A02D" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#C5A02D" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#cbd5e1', fontWeight: 600 }} />
+                      <YAxis hide domain={[1, 5]} />
+                      <Tooltip
+                        cursor={{ stroke: '#C5A02D', strokeWidth: 1, strokeDasharray: '4 4' }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 rounded-xl shadow-lg border border-slate-100 z-50">
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{payload[0].payload.name}</p>
+                                <p className="text-sm font-black text-[#C5A02D]">Promedio: {payload[0].value}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#C5A02D"
+                        strokeWidth={2.5}
+                        fill={`url(#grad-${service.id})`}
+                        dot={{ fill: '#C5A02D', strokeWidth: 0, r: 3.5 }}
+                        activeDot={{ r: 6, fill: '#C5A02D', strokeWidth: 0 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </Card>
             ))}

@@ -109,13 +109,110 @@ const Settings = () => {
     setNewQuestionTexts(prev => ({ ...prev, [categoryId]: value }));
   };
 
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+
+    try {
+      setAddingCategory(true);
+      const { data, error } = await supabase
+        .from('categorias_servicio')
+        .insert([{ 
+          nombre_servicio: newCategoryName.trim(),
+          descripcion_servicio: newCategoryName.trim()
+        }])
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setCategories(prev => [...prev, data[0]]);
+        setNewCategoryName('');
+        setShowAddCategoryModal(false);
+        showStatus('Servicio/Evento añadido correctamente', 'success');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      showStatus(`Error: ${error.message}`, 'error');
+    } finally {
+      setAddingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId, categoryName) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el servicio "${categoryName}"?`)) {
+      return;
+    }
+
+    try {
+      // 1. Obtener TODAS las preguntas (activas e inactivas) asociadas a esta categoría
+      const { data: allCatQuestions, error: fetchQErr } = await supabase
+        .from('preguntas')
+        .select('id_preguntas')
+        .eq('categoria_id', categoryId);
+
+      if (fetchQErr) throw fetchQErr;
+
+      const qIds = (allCatQuestions || []).map(q => q.id_preguntas);
+
+      if (qIds.length > 0) {
+        // Eliminar respuestas asociadas en respuesta_detalle
+        await supabase.from('respuesta_detalle').delete().in('id_pregunta', qIds);
+        await supabase.from('respuesta_detalle').delete().in('id_preguntas', qIds);
+
+        // Eliminar las preguntas de la tabla preguntas
+        const { error: qDeleteErr } = await supabase
+          .from('preguntas')
+          .delete()
+          .eq('categoria_id', categoryId);
+
+        if (qDeleteErr) {
+          // Si las preguntas no se pueden eliminar por FK de respuestas antiguas, desvincular la categoria_id poniéndola en null o desactivando
+          await supabase.from('preguntas').update({ categoria_id: null, activa: false }).eq('categoria_id', categoryId);
+        }
+      }
+
+      // 2. Intentar eliminar la categoría
+      const { error: catError, count } = await supabase
+        .from('categorias_servicio')
+        .delete({ count: 'exact' })
+        .eq('id_servicio', categoryId);
+
+      if (catError) throw catError;
+
+      if (count === 0) {
+        throw new Error('Supabase no permitió borrar el registro en "categorias_servicio" (0 filas afectadas). Asegúrate de agregar una política RLS de DELETE en la tabla categorias_servicio.');
+      }
+
+      setCategories(prev => prev.filter(c => c.id_servicio !== categoryId));
+      setQuestions(prev => prev.filter(q => q.categoria_id !== categoryId));
+      showStatus('Servicio eliminado correctamente de la base de datos', 'success');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      showStatus(error.message || `Error al borrar: ${JSON.stringify(error)}`, 'error');
+    }
+  };
+
   if (loading) return <Loader fullPage message="Cargando configuración..." />;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <header className="mb-10">
-        <h1 className="text-3xl font-serif text-slate-900 mb-2">Configuración de Encuestas</h1>
-        <p className="text-slate-500">Administra las preguntas del sistema organizadas por departamento de servicio.</p>
+      <header className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-serif text-slate-900 mb-2">Configuración de Encuestas</h1>
+          <p className="text-slate-500">Administra las preguntas y servicios/eventos del sistema para su evaluación.</p>
+        </div>
+        <Button
+          variant="accent"
+          icon={Plus}
+          onClick={() => setShowAddCategoryModal(true)}
+        >
+          Nuevo Servicio / Evento
+        </Button>
       </header>
 
       {message.text && (
@@ -128,6 +225,46 @@ const Settings = () => {
         </div>
       )}
 
+      {/* Modal para Nuevo Servicio */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-serif text-slate-900 mb-2">Agregar Nuevo Servicio / Evento</h2>
+            <p className="text-slate-500 text-sm mb-6">Crea una nueva categoría o evento para que posteriormente los huéspedes o clientes puedan evaluarlo.</p>
+            
+            <form onSubmit={handleAddCategory} className="space-y-4">
+              <Input
+                label="Nombre del Servicio / Evento"
+                placeholder="Ej. Restaurante, Evento Corporativo, Spa..."
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                required
+                autoFocus
+              />
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCategoryName('');
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="accent"
+                  loading={addingCategory}
+                >
+                  Crear Servicio
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {categories.map((category) => {
           const catQuestions = questions.filter(q => q.categoria_id === category.id_servicio);
@@ -137,13 +274,23 @@ const Settings = () => {
               key={category.id_servicio}
               title={category.nombre_servicio}
               icon={MessageSquare}
+              headerAction={
+                <button
+                  onClick={() => handleDeleteCategory(category.id_servicio, category.nombre_servicio)}
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-medium"
+                  title="Eliminar servicio"
+                >
+                  <Trash2 size={16} />
+                  <span>Eliminar</span>
+                </button>
+              }
               className="flex flex-col h-full"
             >
               <div className="flex-1 space-y-4 mb-6">
                 {catQuestions.length === 0 ? (
                   <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <HelpCircle className="mx-auto text-slate-300 mb-2" size={32} />
-                    <p className="text-sm text-slate-400">No hay preguntas para este servicio.</p>
+                    <p className="text-sm text-slate-400">No hay preguntas para este servicio aún.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">

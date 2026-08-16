@@ -435,24 +435,41 @@ const SurveyList = () => {
             <div className="space-y-4">
               <h4 className="font-bold text-slate-900 flex items-center gap-2">
                 <Star size={18} fill="#C5A02D" className="text-[#C5A02D]" strokeWidth={0} />
-                Calificaciones por Ítem
+                Calificaciones por Servicio
               </h4>
-              <div className="space-y-3 bg-slate-50 p-6 rounded-2xl">
-                {surveyDetails.map((detail, idx) => (
-                  <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-                    <div className="flex-1 pr-4">
-                      <p className="text-xs font-bold text-[#C5A02D] uppercase tracking-tighter mb-0.5">
-                        {detail.preguntas?.categorias_servicio?.nombre_servicio}
-                      </p>
-                      <p className="text-sm font-medium text-slate-700">{detail.preguntas?.texto_pregunta}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-black text-slate-900">{detail.puntuacion}</span>
-                      <Star size={14} fill="#C5A02D" className="text-[#C5A02D]" strokeWidth={0} />
-                    </div>
+
+              {(() => {
+                const grouped = surveyDetails.reduce((acc, detail) => {
+                  const serviceName = detail.preguntas?.categorias_servicio?.nombre_servicio || 'Servicio General';
+                  if (!acc[serviceName]) acc[serviceName] = [];
+                  acc[serviceName].push(detail);
+                  return acc;
+                }, {});
+
+                return (
+                  <div className="space-y-6">
+                    {Object.entries(grouped).map(([serviceName, items], sIdx) => (
+                      <div key={sIdx} className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-100/80">
+                        <h5 className="text-xs font-bold text-[#C5A02D] uppercase tracking-wider mb-3 pb-2 border-b border-slate-200/60 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#C5A02D]"></span>
+                          {serviceName}
+                        </h5>
+                        <div className="space-y-2.5">
+                          {items.map((detail, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-xl shadow-xs border border-slate-100">
+                              <p className="text-sm font-medium text-slate-700 pr-4 leading-snug">{detail.preguntas?.texto_pregunta}</p>
+                              <div className="flex items-center gap-1.5 shrink-0 bg-[#faf9f6] px-2.5 py-1 rounded-lg border border-[#f1f0ea]">
+                                <span className="text-sm font-black text-slate-900">{detail.puntuacion}</span>
+                                <Star size={14} fill="#C5A02D" className="text-[#C5A02D]" strokeWidth={0} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
 
             <div className="pt-4">
