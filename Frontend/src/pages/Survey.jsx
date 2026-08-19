@@ -7,10 +7,10 @@
 import React, { useState, useEffect } from 'react';
 import { Star, User, CheckCircle2, Calendar, AlertCircle, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { allCountries } from '../data/countries';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Loader from '../components/ui/Loader';
+import CountrySelect from '../components/ui/CountrySelect';
 import './Survey.css';
 
 /**
@@ -372,19 +372,10 @@ const Survey = () => {
             <div className="guest-info-field w-full">
               <label className="text-sm font-semibold text-slate-600 mb-1 block">Teléfono</label>
               <div className="flex items-stretch gap-2 w-full">
-                <select 
-                  name="country_code" 
-                  value={guestInfo.country_code} 
+                <CountrySelect
+                  value={guestInfo.country_code}
                   onChange={handleInputChange}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all appearance-none cursor-pointer"
-                  style={{ width: '100px', flexShrink: 0 }}
-                >
-                  {allCountries.map((c, index) => (
-                    <option key={`${c.code}-${index}`} value={c.dial_code}>
-                      {c.flag} {c.dial_code}
-                    </option>
-                  ))}
-                </select>
+                />
                 <input 
                   className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all leading-none"
                   type="tel" 
