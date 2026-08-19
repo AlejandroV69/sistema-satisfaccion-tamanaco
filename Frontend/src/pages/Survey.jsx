@@ -146,10 +146,25 @@ const Survey = () => {
     setAnswers(prev => ({ ...prev, [id_pregunta]: rating }));
   };
 
-  /** Maneja el cambio de campos de texto del huésped */
+  /** Maneja el cambio de campos de texto del huésped con validaciones dinámicas de fechas */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setGuestInfo(prev => ({ ...prev, [name]: value }));
+    
+    setGuestInfo(prev => {
+      const updated = { ...prev, [name]: value };
+
+      // Si se modifica la fecha de llegada y la fecha de salida es menor que la nueva llegada, reseteamos la fecha de salida
+      if (name === 'fecha_llegada' && updated.fecha_salida && updated.fecha_salida < value) {
+        updated.fecha_salida = value;
+      }
+      
+      // Si se intenta poner una fecha de salida menor a la de llegada, ajustarla a la fecha de llegada
+      if (name === 'fecha_salida' && updated.fecha_llegada && value < updated.fecha_llegada) {
+        updated.fecha_salida = updated.fecha_llegada;
+      }
+
+      return updated;
+    });
   };
 
   /**
@@ -162,6 +177,12 @@ const Survey = () => {
     if (!navigator.onLine) {
       setError('No hay conexión a internet. Por favor conéctese a una red antes de enviar la encuesta.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Validación de coherencia de fechas
+    if (guestInfo.fecha_llegada && guestInfo.fecha_salida && guestInfo.fecha_salida < guestInfo.fecha_llegada) {
+      alert('La fecha de salida no puede ser anterior a la fecha de llegada.');
       return;
     }
     
@@ -381,7 +402,13 @@ const Survey = () => {
               <div className="relative">
                 <input 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
-                  type="date" name="fecha_llegada" value={guestInfo.fecha_llegada} onChange={handleInputChange} onClick={(e) => e.target.showPicker?.()} required 
+                  type="date" 
+                  name="fecha_llegada" 
+                  value={guestInfo.fecha_llegada} 
+                  max={guestInfo.fecha_salida || undefined}
+                  onChange={handleInputChange} 
+                  onClick={(e) => e.target.showPicker?.()} 
+                  required 
                 />
                 <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
@@ -392,7 +419,13 @@ const Survey = () => {
               <div className="relative">
                 <input 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-accent/5 focus:border-accent focus:bg-white outline-none transition-all pr-12"
-                  type="date" name="fecha_salida" value={guestInfo.fecha_salida} onChange={handleInputChange} onClick={(e) => e.target.showPicker?.()} required 
+                  type="date" 
+                  name="fecha_salida" 
+                  value={guestInfo.fecha_salida} 
+                  min={guestInfo.fecha_llegada || undefined}
+                  onChange={handleInputChange} 
+                  onClick={(e) => e.target.showPicker?.()} 
+                  required 
                 />
                 <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
