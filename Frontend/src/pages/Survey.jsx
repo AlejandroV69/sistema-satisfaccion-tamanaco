@@ -131,7 +131,11 @@ const Survey = () => {
       setAnswers(initialAnswers);
     } catch (error) {
       console.error('Error fetching survey data:', error);
-      setError('No se pudieron cargar las preguntas. Por favor, intente más tarde.');
+      const isOffline = !navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError');
+      setError(isOffline
+        ? 'No hay conexión a internet. Verifique su red e intente cargar nuevamente.'
+        : 'No se pudieron cargar las preguntas. Por favor, intente más tarde.'
+      );
     } finally {
       setLoading(false);
     }
@@ -154,6 +158,12 @@ const Survey = () => {
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!navigator.onLine) {
+      setError('No hay conexión a internet. Por favor conéctese a una red antes de enviar la encuesta.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     
     // Validación: verificar que todas las preguntas tengan puntuación > 0
     const unanswered = questions.some(q => !answers[q.id_preguntas]);
@@ -220,7 +230,12 @@ const Survey = () => {
 
     } catch (err) {
       console.error('Error submitting survey:', err);
-      setError(`Ocurrió un error al enviar la encuesta: ${err.message}`);
+      const isOffline = !navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError');
+      setError(isOffline
+        ? 'Error de conexión: No se pudo enviar la encuesta debido a la falta de red a internet. Por favor intente al reconectarse.'
+        : `Ocurrió un error al enviar la encuesta: ${err.message}`
+      );
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }

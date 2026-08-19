@@ -16,6 +16,7 @@ import SurveyList from "./pages/SurveyList";
 import Settings from "./pages/Settings";
 
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import OfflineBanner from "./components/ui/OfflineBanner";
 
 /**
  * Componente principal App
@@ -25,6 +26,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-slate-50">
+        <OfflineBanner />
         <Routes>
           {/* --- RUTAS PÚBLICAS (Con navegación superior Navbar) --- */}
           <Route element={<><Navbar /><div className="pt-20 md:pt-24"><Outlet /></div></>}>

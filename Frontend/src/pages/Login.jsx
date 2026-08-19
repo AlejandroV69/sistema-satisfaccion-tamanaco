@@ -36,19 +36,31 @@ const Login = () => {
    */
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    if (!navigator.onLine) {
+      setError('Sin conexión a internet. Verifique su red para continuar.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(error.message);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      const isOffline = !navigator.onLine || err.message?.includes('Failed to fetch');
+      setError(isOffline ? 'Sin conexión a internet. Intente nuevamente.' : err.message);
+    } finally {
       setLoading(false);
-    } else {
-      navigate('/dashboard');
     }
   };
 
