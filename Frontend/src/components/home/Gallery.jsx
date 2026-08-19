@@ -1,9 +1,20 @@
+/**
+ * @file Gallery.jsx
+ * @description Galería fotográfica interactiva de la página de inicio que muestra
+ * fotografías emblemáticas del hotel en un mosaico adaptable.
+ */
+
 import piscina2 from "../../assets/piscina-tamanaco2.jpg";
 import comida from "../../assets/Comida.jpg";
 import foto1 from "../../assets/Foto-tamanaco.jpg";
 import restaurant from "../../assets/restaurante-tamanaco.jpg";
 
+/**
+ * Componente Gallery
+ * @returns {JSX.Element} Galería de fotografías emblemáticas
+ */
 const Gallery = () => {
+  // Lista de imágenes para la galería
   const images = [
     { src: piscina2, alt: "Piscina Tamanaco" },
     { src: comida, alt: "Gastronomía" },
@@ -14,11 +25,13 @@ const Gallery = () => {
   return (
     <section className="py-24 bg-[#fffcf9]" id="gallery">
       <div className="max-w-7xl mx-auto px-6">
+        {/* Titular de la galería */}
         <div className="text-center mb-16 md:mb-24 px-4">
           <p className="text-[#D4AF37] text-xs uppercase tracking-[0.4em] mb-4 font-semibold">Social</p>
           <h2 className="font-serif text-3xl md:text-5xl text-[#0f172a]">Momentos Tamanaco</h2>
         </div>
         
+        {/* Mosaico de imágenes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {images.map((image, index) => (
             <div 
@@ -43,3 +56,4 @@ const Gallery = () => {
 };
 
 export default Gallery;
+

@@ -1,18 +1,28 @@
+/**
+ * @file Login.jsx
+ * @description Página de inicio de sesión administrativo con autenticación de correo y contraseña vía Supabase.
+ */
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { ArrowLeft } from 'lucide-react';
 import piscinaBackground from '../assets/piscina-tamanaco2.jpg';
 
+/**
+ * Componente Login
+ * @returns {JSX.Element} Formulario de inicio de sesión
+ */
 const Login = () => {
+  // --- ESTADOS ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // --- EFECTO: REDIRECCIÓN SI YA EXISTE SESIÓN ACTIVA ---
   useEffect(() => {
-    // Redirect if already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) navigate('/dashboard');
@@ -20,6 +30,10 @@ const Login = () => {
     checkUser();
   }, [navigate]);
 
+  /**
+   * Maneja el envío del formulario de login autenticando con Supabase Auth.
+   * @param {React.FormEvent} e - Evento de envío de formulario.
+   */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -40,7 +54,7 @@ const Login = () => {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Dynamic Background */}
+      {/* Fondo dinámico con efecto blur */}
       <div className="absolute inset-0 z-0">
         <img 
           src={piscinaBackground} 
@@ -50,7 +64,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-[2px]"></div>
       </div>
 
-      {/* Back to Home Button */}
+      {/* Botón para regresar a la Landing Page */}
       <Link 
         to="/" 
         className="absolute top-8 left-8 z-20 flex items-center gap-2 text-white/70 hover:text-[#D4AF37] transition-all group"
@@ -61,8 +75,9 @@ const Login = () => {
         <span className="text-[10px] uppercase tracking-[0.3em] font-bold">Volver al Inicio</span>
       </Link>
 
+      {/* Tarjeta contenedora del formulario de autenticación */}
       <div className="relative z-10 max-w-md w-full bg-slate-900/40 backdrop-blur-xl border border-white/10 p-10 md:p-12 rounded-sm shadow-2xl overflow-hidden group">
-        {/* Decorative corner */}
+        {/* Detalle decorativo de esquina */}
         <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#D4AF37]/10 rotate-45 group-hover:bg-[#D4AF37]/20 transition-all duration-700"></div>
         
         <div className="text-center">
@@ -73,6 +88,7 @@ const Login = () => {
           
           <div className="h-px w-12 bg-[#D4AF37]/30 mx-auto mb-10"></div>
           
+          {/* Formulario de Login */}
           <form onSubmit={handleLogin} className="space-y-6 text-left">
             {error && (
               <div className="bg-red-500/10 border border-red-500/50 p-3 rounded-sm">
@@ -80,6 +96,7 @@ const Login = () => {
               </div>
             )}
             
+            {/* Campo Correo Electrónico */}
             <div className="space-y-2">
               <label className="text-slate-400 text-[10px] uppercase tracking-widest pl-1 font-bold">Correo Electrónico</label>
               <input 
@@ -92,6 +109,7 @@ const Login = () => {
               />
             </div>
 
+            {/* Campo Contraseña */}
             <div className="space-y-2">
               <label className="text-slate-400 text-[10px] uppercase tracking-widest pl-1 font-bold">Contraseña</label>
               <input 
@@ -104,6 +122,7 @@ const Login = () => {
               />
             </div>
             
+            {/* Botón Enviar */}
             <div className="pt-4">
               <button 
                 type="submit" 
@@ -116,10 +135,11 @@ const Login = () => {
           </form>
         </div>
         
-        {/* Subtle bottom detail */}
+        {/* Detalle decorativo inferior */}
         <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent"></div>
       </div>
       
+      {/* Pie de página inferior */}
       <p className="absolute bottom-8 text-white/30 text-[9px] uppercase tracking-[0.4em] font-light">
         © 2026 Hotel Tamanaco Caracas | Distinción Legendaria
       </p>
@@ -127,4 +147,5 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Login;
+

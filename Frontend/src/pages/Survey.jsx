@@ -1,3 +1,9 @@
+/**
+ * @file Survey.jsx
+ * @description Formulario interactivo público de satisfacción para huéspedes del Hotel Tamanaco.
+ * Captura datos personales, valoraciones por estrellas por categoría de servicio y comentarios.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Star, User, CheckCircle2, Calendar, AlertCircle, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -7,6 +13,13 @@ import Card from '../components/ui/Card';
 import Loader from '../components/ui/Loader';
 import './Survey.css';
 
+/**
+ * Componente de puntuación por 5 estrellas
+ * @param {Object} props - Propiedades del componente.
+ * @param {number} props.value - Valor numérico actual (1 a 5).
+ * @param {Function} props.onChange - Callback al seleccionar una estrella.
+ * @returns {JSX.Element} Selector de estrellas.
+ */
 const StarRating = ({ value, onChange }) => {
   return (
     <div className="stars-container">
@@ -24,7 +37,12 @@ const StarRating = ({ value, onChange }) => {
   );
 };
 
+/**
+ * Componente Survey
+ * @returns {JSX.Element} Vista del formulario de encuesta pública
+ */
 const Survey = () => {
+  // --- ESTADOS DE PREGUNTAS Y CATEGORÍAS ---
   const [questions, setQuestions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +50,7 @@ const Survey = () => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
   
+  // --- DATOS DEL HUÉSPED ---
   const [guestInfo, setGuestInfo] = useState({
     nombre_completo: '',
     email: '',
@@ -42,15 +61,20 @@ const Survey = () => {
     country_code: '+58'
   });
 
+  // --- RESPUESTAS Y COMENTARIOS ---
   const [answers, setAnswers] = useState({});
   const [comentarios, setComentarios] = useState('');
   const [recentComments, setRecentComments] = useState([]);
 
+  // Carga inicial de preguntas y comentarios recientes
   useEffect(() => {
     fetchSurveyData();
     fetchRecentComments();
   }, []);
 
+  /**
+   * Obtiene comentarios recientes destacados para mostrar como testimonios en la encuesta.
+   */
   const fetchRecentComments = async () => {
     try {
       const { data, error } = await supabase
@@ -68,7 +92,7 @@ const Survey = () => {
       
       if (error) throw error;
       
-      // Shuffle and pick 5
+      // Mezcla aleatoria de comentarios para mostrar 5
       const shuffled = (data || []).sort(() => 0.5 - Math.random());
       setRecentComments(shuffled.slice(0, 5));
     } catch (err) {
@@ -76,6 +100,9 @@ const Survey = () => {
     }
   };
 
+  /**
+   * Obtiene las categorías activas y las preguntas de la encuesta desde Supabase.
+   */
   const fetchSurveyData = async () => {
     try {
       setLoading(true);
@@ -110,19 +137,25 @@ const Survey = () => {
     }
   };
 
+  /** Actualiza la calificación por estrellas de una pregunta específica */
   const handleRatingChange = (id_pregunta, rating) => {
     setAnswers(prev => ({ ...prev, [id_pregunta]: rating }));
   };
 
+  /** Maneja el cambio de campos de texto del huésped */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setGuestInfo(prev => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Registra los datos del huésped, crea la cabecera de la encuesta y
+   * guarda el detalle de cada respuesta en Supabase.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate that all questions are answered
+    // Validación: verificar que todas las preguntas tengan puntuación > 0
     const unanswered = questions.some(q => !answers[q.id_preguntas]);
     if (unanswered) {
       alert('Por favor, responda todas las preguntas de la encuesta.');
@@ -133,7 +166,7 @@ const Survey = () => {
       setSubmitting(true);
       setError(null);
 
-      // 1. Combine country code and phone
+      // 1. Formatear número telefónico con código internacional
       const finalPhone = `${guestInfo.country_code} ${guestInfo.telefono_huesped}`.trim();
       const guestData = { 
         nombre_completo: guestInfo.nombre_completo,
@@ -144,7 +177,7 @@ const Survey = () => {
         telefono_huesped: finalPhone
       };
 
-      // 2. Insert or get Guest
+      // 2. Insertar o actualizar huésped en Supabase
       const { data: newGuest, error: guestError } = await supabase
         .from('huespedes')
         .upsert(guestData, { onConflict: 'email' })
@@ -153,7 +186,7 @@ const Survey = () => {
 
       if (guestError) throw guestError;
 
-      // 3. Calculate Final Score and Create Survey Record Header
+      // 3. Calcular puntuación promedio final y crear registro de encuesta
       const totalScore = Object.values(answers).reduce((acc, val) => acc + val, 0);
       const finalScore = questions.length > 0 ? (totalScore / questions.length) : 0;
 
@@ -169,7 +202,7 @@ const Survey = () => {
 
       if (surveyError) throw surveyError;
 
-      // 4. Create Answer Details (Bulk Insert)
+      // 4. Insertar respuestas detalladas (Bulk Insert)
       const answerDetails = Object.entries(answers).map(([preguntaId, valor]) => ({
         id_encuesta: newSurvey.id_encuesta,
         id_pregunta: preguntaId,
@@ -193,6 +226,7 @@ const Survey = () => {
     }
   };
 
+  // Mensaje de éxito tras completar la encuesta
   if (submitted) {
     return (
       <div className="survey-page flex items-center justify-center min-h-[70vh]">
@@ -212,6 +246,7 @@ const Survey = () => {
     );
   }
 
+  // Agrupación de preguntas por su categoría de servicio correspondiente
   const groupedQuestions = questions.reduce((acc, q) => {
     const category = categories.find(c => c.id_servicio === q.categoria_id);
     const catName = category ? category.nombre_servicio : 'Otros Servicios';
@@ -236,7 +271,7 @@ const Survey = () => {
         </div>
       )}
 
-      {/* Recent Comments Section */}
+      {/* Sección de Testimonios Recientes */}
       {recentComments.length > 0 && (
         <div className="max-w-3xl mx-auto mb-12">
           <h3 className="text-sm font-bold uppercase tracking-widest text-[#C5A02D] mb-6 text-center">Lo que dicen nuestros huéspedes</h3>
@@ -269,7 +304,9 @@ const Survey = () => {
         </div>
       )}
 
+      {/* Formulario Principal de Encuesta */}
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-8">
+        {/* Datos Personales del Huésped */}
         <Card title="Información del Huésped" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="guest-info-field">
@@ -348,6 +385,7 @@ const Survey = () => {
           </div>
         </Card>
 
+        {/* Sección de Preguntas Agrupadas por Servicio */}
         {Object.keys(groupedQuestions).length > 0 ? (
           Object.keys(groupedQuestions).map((catName) => (
             <Card key={catName} title={catName}>
@@ -367,7 +405,7 @@ const Survey = () => {
            </Card>
         )}
 
-        {/* Comment Section */}
+        {/* Campo de Comentarios Adicionales */}
         <Card title="Comentarios Adicionales" icon={Activity}>
           <div className="pt-2">
             <p className="text-sm sm:text-base text-slate-600 font-medium mb-6 leading-relaxed block">
@@ -382,6 +420,7 @@ const Survey = () => {
           </div>
         </Card>
 
+        {/* Botón de Envío */}
         {Object.keys(questions).length > 0 && (
           <Button 
             variant="accent" 
@@ -398,4 +437,4 @@ const Survey = () => {
   );
 };
 
-export default Survey;
+export default Survey;

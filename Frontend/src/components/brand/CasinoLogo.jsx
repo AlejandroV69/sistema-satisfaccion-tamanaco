@@ -1,5 +1,16 @@
+/**
+ * @file CasinoLogo.jsx
+ * @description Componente vectorial SVG para el logotipo distintivo de "TAMANACO CASINO" con gradiente dorado.
+ */
+
 import React from 'react';
 
+/**
+ * Componente CasinoLogo
+ * @param {Object} props - Propiedades del componente.
+ * @param {string} [props.className="h-16"] - Clases CSS de dimensión del logo.
+ * @returns {JSX.Element} SVG renderizado del logotipo del casino.
+ */
 const CasinoLogo = ({ className = "h-16" }) => {
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
@@ -11,6 +22,7 @@ const CasinoLogo = ({ className = "h-16" }) => {
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
+          {/* Degradado metálico dorado específico para Casino */}
           <linearGradient id="casinoGoldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#BF953F" />
             <stop offset="25%" stopColor="#FCF6BA" />
@@ -19,13 +31,14 @@ const CasinoLogo = ({ className = "h-16" }) => {
             <stop offset="100%" stopColor="#AA771C" />
           </linearGradient>
           
+          {/* Filtro de resplandor suave */}
           <filter id="casinoSoftGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        {/* main Wordmark */}
+        {/* Texto principal: TAMANACO */}
         <text
           x="50%"
           y="70"
@@ -43,7 +56,7 @@ const CasinoLogo = ({ className = "h-16" }) => {
           TAMANACO
         </text>
 
-        {/* Casino Subtext */}
+        {/* Subtexto: CASINO */}
         <text
           x="50%"
           y="130"
@@ -66,3 +79,4 @@ const CasinoLogo = ({ className = "h-16" }) => {
 };
 
 export default CasinoLogo;
+

@@ -1,9 +1,19 @@
+/**
+ * @file Narrative.jsx
+ * @description Sección de narrativa histórica ("Nuestra Narrativa") que resalta los 70 años de legado del hotel.
+ */
+
 import narrativeImage from "../../assets/Foto-tamanaco.jpg";
 
+/**
+ * Componente Narrative
+ * @returns {JSX.Element} Sección narrativa del hotel
+ */
 const Narrative = () => {
   return (
     <section className="py-24 md:py-32 bg-[#fcf9f4]" id="narrative">
       <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+        {/* Columna de texto e historia */}
         <div className="md:col-span-5 order-2 md:order-1">
           <p className="text-[#C5A02D] text-xs uppercase tracking-widest mb-6 font-bold">Nuestra Narrativa</p>
           <h2 className="font-serif text-4xl md:text-5xl text-[#0f172a] mb-8 leading-[1.2]">
@@ -24,6 +34,8 @@ const Narrative = () => {
             Descubra el Legado &rarr;
           </button>
         </div>
+
+        {/* Columna de imagen decorativa con efecto hover */}
         <div className="md:col-span-7 order-1 md:order-2">
           <div className="relative aspect-[4/3] md:aspect-[16/10] rounded-sm overflow-hidden shadow-2xl group">
             <img 
@@ -40,3 +52,4 @@ const Narrative = () => {
 };
 
 export default Narrative;
+

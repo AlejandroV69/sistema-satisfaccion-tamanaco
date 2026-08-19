@@ -1,8 +1,17 @@
+/**
+ * @file Services.jsx
+ * @description Sección de la página de inicio que presenta los servicios destacados del hotel
+ * (Gastronomía, Habitaciones y Piscina/Wellness).
+ */
+
 import restaurantImage from "../../assets/restaurante-tamanaco.jpg";
 import roomsImage from "../../assets/habitaciones.jpg";
 import poolImage from "../../assets/piscina-tamanaco.jpg";
 import { Utensils, Bed, Waves } from "lucide-react";
 
+/**
+ * Datos estáticos de los servicios ofertados
+ */
 const services = [
   {
     title: "Experiencia Culinaria",
@@ -24,15 +33,21 @@ const services = [
   },
 ];
 
+/**
+ * Componente Services
+ * @returns {JSX.Element} Grilla de servicios de clase mundial
+ */
 const Services = () => {
   return (
     <section className="py-32 bg-slate-900 border-y border-white/5 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
+        {/* Titular de sección */}
         <div className="text-center mb-24">
           <p className="text-[#D4AF37] text-xs uppercase tracking-[0.4em] mb-4 font-semibold">Exclusividad</p>
           <h2 className="font-serif text-4xl md:text-6xl !text-white">Servicios de Clase Mundial</h2>
         </div>
 
+        {/* Grilla de 3 tarjetas de servicio */}
         <div className="grid md:grid-cols-3 gap-8">
           {services.map((service, index) => (
             <div key={index} className="group relative overflow-hidden bg-slate-950/50 border border-white/10 rounded-sm hover:border-[#C5A02D]/50 transition-all flex flex-col items-center">
@@ -59,3 +74,4 @@ const Services = () => {
 };
 
 export default Services;
+

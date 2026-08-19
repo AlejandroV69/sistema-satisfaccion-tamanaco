@@ -1,17 +1,28 @@
+/**
+ * @file Location.jsx
+ * @description Sección de ubicación del hotel con datos de contacto, teléfono de reservas,
+ * correo electrónico de atención y mapa embebido de Google Maps.
+ */
+
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 
+/**
+ * Componente Location
+ * @returns {JSX.Element} Sección de ubicación física y vías de contacto
+ */
 const Location = () => {
   return (
     <section className="py-16 md:py-24 bg-[#fcf9f4]" id="location">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           
-          {/* Left Side: Contact Information */}
+          {/* Columna Izquierda: Detalles e Información de Contacto */}
           <div className="order-2 lg:order-1">
             <p className="text-[#C5A02D] text-xs uppercase tracking-[0.5em] mb-4 md:mb-6 font-semibold">Ubicación Estratégica</p>
             <h2 className="font-serif text-3xl md:text-5xl text-[#0f172a] mb-8 md:mb-10 leading-tight"> Donde la Ciudad <br/> se Encuentra con el Lujo </h2>
             
             <div className="space-y-8">
+              {/* Dirección Física */}
               <div className="flex gap-6 group">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#D4AF37]/20 group-hover:bg-[#D4AF37] group-hover:text-white transition-all duration-300">
                   <MapPin className="w-5 h-5" />
@@ -25,6 +36,7 @@ const Location = () => {
                 </div>
               </div>
 
+              {/* Teléfono de Concierge */}
               <div className="flex gap-6 group">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#D4AF37]/20 group-hover:bg-[#D4AF37] group-hover:text-white transition-all duration-300">
                   <Phone className="w-5 h-5" />
@@ -35,6 +47,7 @@ const Location = () => {
                 </div>
               </div>
 
+              {/* Correo Electrónico */}
               <div className="flex gap-6 group">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#D4AF37]/20 group-hover:bg-[#D4AF37] group-hover:text-white transition-all duration-300">
                   <Mail className="w-5 h-5" />
@@ -45,6 +58,7 @@ const Location = () => {
                 </div>
               </div>
 
+              {/* Horario de Atención */}
               <div className="flex gap-6 group">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#D4AF37]/20 group-hover:bg-[#D4AF37] group-hover:text-white transition-all duration-300">
                   <Clock className="w-5 h-5" />
@@ -57,7 +71,7 @@ const Location = () => {
             </div>
           </div>
 
-          {/* Right Side: Embedded Google Map */}
+          {/* Columna Derecha: Mapa Interactivo de Google Maps */}
           <div className="order-1 lg:order-2">
             <div className="relative group overflow-hidden rounded-sm shadow-2xl p-1 bg-white border border-[#D4AF37]/10">
               <div className="aspect-square md:aspect-video lg:aspect-square overflow-hidden bg-slate-100 relative">
@@ -71,7 +85,7 @@ const Location = () => {
                   referrerPolicy="no-referrer-when-downgrade"
                   className="grayscale hover:grayscale-0 transition-all duration-700"
                 ></iframe>
-                {/* Decorative Frame */}
+                {/* Marco decorativo */}
                 <div className="absolute inset-0 pointer-events-none border-[12px] border-white/40 mix-blend-overlay"></div>
               </div>
               <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-4 py-2 text-[8px] uppercase tracking-[0.3em] font-bold shadow-sm border border-[#D4AF37]/20 uppercase">
@@ -87,3 +101,4 @@ const Location = () => {
 };
 
 export default Location;
+

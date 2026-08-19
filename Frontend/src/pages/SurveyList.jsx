@@ -1,3 +1,9 @@
+/**
+ * @file SurveyList.jsx
+ * @description Gestión, filtrado, búsqueda, exportación a PDF/impresión y visualización
+ * de detalles para la lista de encuestas registradas.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreHorizontal, Calendar, Download, User, MapPin, Star, X, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -6,12 +12,19 @@ import Button from '../components/ui/Button';
 import Loader from '../components/ui/Loader';
 import Modal from '../components/ui/Modal';
 
+/**
+ * Componente SurveyList
+ * @returns {JSX.Element} Vista de gestión y filtrado de encuestas
+ */
 const SurveyList = () => {
+  // --- ESTADOS DE TABLA Y FILTROS ---
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
-  const [satisfactionFilter, setSatisfactionFilter] = useState('all'); // 'all', '5', '4', '3', '2', '1'
+  const [satisfactionFilter, setSatisfactionFilter] = useState('all');
+  
+  // --- ESTADOS DE DETALLE EN MODAL ---
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -20,10 +33,14 @@ const SurveyList = () => {
   
   const dateInputRef = React.useRef(null);
 
+  // Carga inicial de encuestas
   useEffect(() => {
     fetchSurveys();
   }, []);
 
+  /**
+   * Obtiene la lista completa de encuestas registradas asociadas a sus respectivos huéspedes.
+   */
   const fetchSurveys = async () => {
     try {
       setLoading(true);
@@ -66,6 +83,10 @@ const SurveyList = () => {
     }
   };
 
+  /**
+   * Abre la ventana modal e inserta los detalles de respuestas individuales para la encuesta seleccionada.
+   * @param {Object} survey - Objeto de la encuesta seleccionada.
+   */
   const handleViewDetails = async (survey) => {
     setSelectedSurvey(survey);
     setIsModalOpen(true);
@@ -91,10 +112,12 @@ const SurveyList = () => {
     }
   };
 
+  /** Dispara el diálogo de impresión nativo del navegador (Reporte PDF) */
   const handleExportPDF = () => {
     window.print();
   };
 
+  // Filtrado reactivo por texto de búsqueda, fecha y nivel de satisfacción
   const filteredSurveys = surveys.filter(s => {
     const matchesSearch = 
       s.room.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -116,6 +139,7 @@ const SurveyList = () => {
 
   return (
     <div className="space-y-6 pb-20" onClick={() => setShowFilters(false)}>
+      {/* Encabezado principal */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
         <div>
           <h1 className="text-4xl font-serif text-slate-900 mb-2">Gestión de Encuestas</h1>
@@ -126,17 +150,18 @@ const SurveyList = () => {
         </Button>
       </header>
 
-      {/* Print-only Header */}
+      {/* Encabezado exclusivo para impresión PDF */}
       <div className="display-none print-only mb-8 text-center border-b-2 border-[#C5A02D] pb-6">
         <h1 className="text-4xl font-serif text-slate-900 mb-2">Hotel Tamanaco</h1>
         <h2 className="text-xl text-slate-500 uppercase tracking-widest">Reporte de Satisfacción de Huéspedes</h2>
         <p className="text-sm text-slate-400 mt-2 font-bold">{new Date().toLocaleDateString('es-ES', { dateStyle: 'long' })}</p>
       </div>
 
+      {/* Tarjeta contenedora de la tabla y barra de filtros */}
       <Card className="p-0 overflow-visible no-print">
-        {/* Filters Header */}
+        {/* Barra superior de herramientas y búsqueda */}
         <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
-          {/* Search Input */}
+          {/* Campo de Búsqueda */}
           <div className="relative w-full">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
@@ -157,9 +182,9 @@ const SurveyList = () => {
             )}
           </div>
 
-          {/* Filter Chips / Action Row */}
+          {/* Fila de Filtros Rápidos */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {/* Hidden Native Date Input */}
+            {/* Input nativo de fecha (oculto) */}
             <input 
               ref={dateInputRef}
               type="date" 
@@ -168,7 +193,7 @@ const SurveyList = () => {
               className="sr-only"
             />
 
-            {/* Custom Date Button */}
+            {/* Botón selector de fecha personalizado */}
             <button 
               type="button"
               onClick={() => {
@@ -202,7 +227,7 @@ const SurveyList = () => {
               )}
             </button>
 
-            {/* Custom Satisfaction Filter Dropdown */}
+            {/* Menú Desplegable de Filtro por Satisfacción */}
             <div className="relative shrink-0">
               <button 
                 type="button"
@@ -278,7 +303,7 @@ const SurveyList = () => {
               )}
             </div>
 
-            {/* Clear Filters Button */}
+            {/* Botón para Limpiar Todos los Filtros */}
             {(searchTerm || filterDate || satisfactionFilter !== 'all') && (
               <button
                 type="button"
@@ -295,7 +320,7 @@ const SurveyList = () => {
           </div>
         </div>
 
-        {/* Desktop Table View */}
+        {/* Tabla de Encuestas (Desktop) */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -345,7 +370,7 @@ const SurveyList = () => {
           </table>
         </div>
 
-        {/* Mobile Card View */}
+        {/* Tarjetas de Encuestas (Vista Móvil) */}
         <div className="md:hidden divide-y divide-slate-100">
           {filteredSurveys.map((survey) => (
             <div key={survey.id} className="p-5 flex flex-col gap-3">
@@ -376,7 +401,7 @@ const SurveyList = () => {
         )}
       </Card>
 
-      {/* Print View Table (hidden normally, visible when printing) */}
+      {/* Tabla exclusiva para Impresión PDF */}
       <div className="display-none print-only">
         <table className="w-full border-collapse">
           <thead>
@@ -405,7 +430,7 @@ const SurveyList = () => {
         </table>
       </div>
 
-      {/* Details Modal */}
+      {/* Modal de Detalles de la Encuesta */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
@@ -490,4 +515,5 @@ const SurveyList = () => {
 };
 
 export default SurveyList;
+
 

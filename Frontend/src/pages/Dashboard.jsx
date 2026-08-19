@@ -1,3 +1,9 @@
+/**
+ * @file Dashboard.jsx
+ * @description Panel principal de administración con resumen de métricas clave,
+ * gráfico comparativo de departamentos (Recharts), lista de actividad reciente y alertas de servicio críticas.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -28,7 +34,10 @@ import Button from '../components/ui/Button';
 import Loader from '../components/ui/Loader';
 import { supabase } from '../lib/supabaseClient';
 
-// Hook to detect mobile screen
+/**
+ * Hook personalizado para detectar si la pantalla actual es un dispositivo móvil (<768px).
+ * @returns {boolean} Es pantalla móvil o no.
+ */
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -39,9 +48,15 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+/**
+ * Componente Dashboard
+ * @returns {JSX.Element} Vista del panel de administración
+ */
 const Dashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  
+  // --- ESTADOS DE DATOS Y CARGA ---
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState({
     totalEncuestas: 0,
@@ -54,16 +69,21 @@ const Dashboard = () => {
   const [alerts, setAlerts] = React.useState([]);
   const [error, setError] = React.useState(null);
 
+  // Carga inicial de datos al montar el componente
   React.useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  /**
+   * Obtiene de Supabase todas las métricas globales, puntuaciones por servicio,
+   * encuestas recientes y preguntas críticas con menor puntuación.
+   */
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // 1. Fetch Global Summary and Recent Activity
+      // 1. Obtener encuestas realizadas y datos del huésped
       const { data: surveys, error: surveyError } = await supabase
         .from('encuestas_realizadas')
         .select(`
@@ -87,7 +107,7 @@ const Dashboard = () => {
         : 0;
       const feedback = safeSurveys.filter(s => s.comentarios && s.comentarios.trim() !== '').length;
 
-      // 2. Fetch Department Stats for the Chart & Detailed Trend
+      // 2. Obtener categorías de servicio y respuestas individuales para estadísticas precisas
       const { data: categories } = await supabase.from('categorias_servicio').select('*');
       const { data: responses } = await supabase
         .from('respuesta_detalle')
@@ -96,12 +116,12 @@ const Dashboard = () => {
       const safeCategories = categories || [];
       const safeResponses = responses || [];
 
-      // Recalcular promedio desde respuestas individuales (más preciso, igual que Stats)
+      // Recalcular promedio general desde detalle de respuestas
       const avgFromResponses = safeResponses.length > 0
         ? (safeResponses.reduce((acc, r) => acc + r.puntuacion, 0) / safeResponses.length).toFixed(1)
         : avg;
 
-      // Calcular tendencia precisa agrupando respuestas por encuesta y ordenando por fecha
+      // Calcular porcentaje de tendencia comparando las dos mitades temporales de encuestas
       let tendencia = 'N/D';
       const surveysWithDate = safeSurveys.filter(s => s.fecha_encuesta);
       if (surveysWithDate.length >= 2) {
@@ -110,7 +130,6 @@ const Dashboard = () => {
         const firstHalf = sorted.slice(0, mid);
         const secondHalf = sorted.slice(mid);
 
-        // Obtener promedio exacto (con decimales crudos) para cada mitad usando respuesta_detalle
         const getExactAvg = (halfSurveys) => {
           const ids = new Set(halfSurveys.map(h => h.id_encuesta));
           const matchResp = safeResponses.filter(r => ids.has(r.id_encuesta));
@@ -138,6 +157,7 @@ const Dashboard = () => {
         tendencia 
       });
 
+      // Calcular promedio de cada categoría de servicio para el gráfico de barras
       if (safeCategories.length > 0) {
         const results = safeCategories.map(cat => {
           const catResponses = safeResponses.filter(r => r.preguntas?.categoria_id === cat.id_servicio);
@@ -150,7 +170,7 @@ const Dashboard = () => {
         setDeptStats(results);
       }
 
-      // 3. Transform recent surveys
+      // 3. Formatear las 5 encuestas más recientes
       setRecentSurveys(safeSurveys.slice(0, 5).map(s => {
         const guestInfo = Array.isArray(s.huespedes) ? s.huespedes[0] : s.huespedes;
         return {
@@ -162,7 +182,7 @@ const Dashboard = () => {
         };
       }));
 
-      // 4. Calculate Critical Alerts (Bottom 2 Worst Questions)
+      // 4. Identificar las 3 preguntas con peor puntuación (Alertas críticas de servicio)
       const questionMap = {};
       safeResponses.forEach(r => {
          const qText = r.preguntas?.texto_pregunta;
@@ -188,11 +208,11 @@ const Dashboard = () => {
     }
   };
 
-  const COLORS = ['#C5A02D', '#D4AF37', '#B8860B', '#DAA520'];
-
+  // Configuración de indicadores visuales de tendencia
   const isPositive = stats.tendencia.startsWith('+');
   const isNegative = stats.tendencia.startsWith('-');
 
+  // Configuración de tarjetas de estadisticas rápidas
   const quickStats = [
     { label: 'Encuestas Totales', value: stats.totalEncuestas.toString(), icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50', valueColor: 'text-slate-900' },
     { label: 'Promedio Sat.', value: stats.promedioGral.toString(), icon: Star, color: 'text-amber-500', bg: 'bg-amber-50', valueColor: 'text-slate-900' },
@@ -207,6 +227,7 @@ const Dashboard = () => {
     },
   ];
 
+  // Pantalla de error si falla la consulta
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in duration-500">
@@ -228,6 +249,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Encabezado del Dashboard */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-serif text-slate-900 mb-2">Panel de Control</h1>
@@ -252,7 +274,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Dashboard General - Comparativa de Servicios */}
+      {/* Dashboard General - Comparativa de Servicios (Gráfico Recharts) */}
       <Card title="Dashboard General de Servicios" icon={BarChartIcon} className="mt-8 mb-4">
         <div className="h-[300px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
@@ -295,6 +317,7 @@ const Dashboard = () => {
                   fontSize: 13 
                 }}
               >
+                {/* Coloreado condicional de barras según nivel de satisfacción */}
                 {deptStats.map((entry, index) => {
                   let barColor = '#C5A02D'; // Dorado Premium (Excelente)
                   if (entry.puntuacion >= 4.0) barColor = '#C5A02D';
@@ -309,7 +332,9 @@ const Dashboard = () => {
         </div>
       </Card>
 
+      {/* Sección Inferior: Actividad Reciente y Alertas de Servicio */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Actividad Reciente */}
         <Card 
           title="Actividad Reciente" 
           className="lg:col-span-2"
@@ -356,6 +381,7 @@ const Dashboard = () => {
           </div>
         </Card>
 
+        {/* Alertas de Servicio (Puntos Críticos) */}
         <Card title="Alertas de Servicio" className="shadow-xl shadow-slate-100 relative overflow-hidden group">
            <div className="space-y-4 relative z-10">
               <div className="flex items-center gap-3 mb-4">
@@ -390,4 +416,5 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Dashboard;
+

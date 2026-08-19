@@ -1,21 +1,35 @@
+/**
+ * @file ProtectedRoute.jsx
+ * @description Componente guardián de rutas protegidas que verifica la autenticación del usuario
+ * mediante Supabase Auth y gestiona la expiración de sesión por inactividad.
+ */
+
 import { useEffect, useState, useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 
+/**
+ * Componente ProtectedRoute
+ * @returns {JSX.Element} Subrutas protegidas (<Outlet />) o redirección a /login
+ */
 const ProtectedRoute = () => {
+  // --- ESTADOS ---
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const location = useLocation();
 
+  // --- REFERENCIAS DE INACTIVIDAD ---
   const lastActivityTime = useRef(Date.now());
   const showWarningRef = useRef(false);
 
+  // Sincronizar referencia de advertencia
   useEffect(() => {
     showWarningRef.current = showWarning;
   }, [showWarning]);
 
+  // --- EFECTO: VERIFICAR SESIÓN DE SUPABASE ---
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -25,39 +39,41 @@ const ProtectedRoute = () => {
 
     checkSession();
 
+    // Escucha cambios en el estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [location]); // Re-run check on every route transition
+  }, [location]);
 
-  // Manejo de inactividad
+  // --- EFECTO: CONTROL DE INACTIVIDAD ---
   useEffect(() => {
     if (!session) return;
 
-    // 15 minutos para mostrar la advertencia
+    // Límite de inactividad: 15 minutos antes de advertencia
     const INACTIVITY_MS = 15 * 60 * 1000; 
 
+    // Actualiza la marca de tiempo al detectar actividad del usuario
     const updateActivity = () => {
       if (!showWarningRef.current) {
         lastActivityTime.current = Date.now();
       }
     };
 
-    // Eventos a escuchar
+    // Eventos del usuario a monitorear
     const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
     events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
 
-    // Verificar inactividad periódicamente
+    // Verificación periódica cada 10 segundos
     const checkInterval = setInterval(() => {
       const now = Date.now();
       if (!showWarningRef.current && now - lastActivityTime.current >= INACTIVITY_MS) {
         setShowWarning(true);
         setCountdown(60);
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
 
     return () => {
       events.forEach(e => window.removeEventListener(e, updateActivity));
@@ -65,7 +81,7 @@ const ProtectedRoute = () => {
     };
   }, [session]);
 
-  // Manejo de la cuenta regresiva del modal
+  // --- EFECTO: CUENTA REGRESIVA DE ADVERTENCIA DE INACTIVIDAD ---
   useEffect(() => {
     let interval;
     if (showWarning) {
@@ -83,11 +99,13 @@ const ProtectedRoute = () => {
     return () => clearInterval(interval);
   }, [showWarning]);
 
+  /** Restablece la inactividad y mantiene al usuario conectado */
   const handleStayLoggedIn = () => {
     lastActivityTime.current = Date.now();
     setShowWarning(false);
   };
 
+  // Spinner mientras valida sesión
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -96,14 +114,17 @@ const ProtectedRoute = () => {
     );
   }
 
+  // Redirección si no existe sesión válida
   if (!session) {
     return <Navigate to="/login" replace />;
   }
 
   return (
     <>
+      {/* Contenido protegido */}
       <Outlet />
 
+      {/* Modal de Advertencia por Inactividad */}
       {showWarning && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white p-8 rounded-sm shadow-2xl max-w-md w-full text-center border-t-4 border-[#C5A02D] animate-in fade-in zoom-in duration-300">
@@ -137,3 +158,4 @@ const ProtectedRoute = () => {
 };
 
 export default ProtectedRoute;
+

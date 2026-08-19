@@ -1,3 +1,9 @@
+/**
+ * @file Home.jsx
+ * @description Página principal del Hotel Tamanaco. Ensambla todas las secciones de la Landing Page
+ * (Hero, Narrativa, Servicios, Casino, Galería, Ubicación) y el pie de página oficial.
+ */
+
 import Hero from "../components/home/Hero";
 import Narrative from "../components/home/Narrative";
 import Services from "../components/home/Services";
@@ -6,7 +12,7 @@ import Gallery from "../components/home/Gallery";
 import Location from "../components/home/Location";
 import BrandLogo from "../components/brand/BrandLogo";
 
-// Custom SVG Icons to avoid Lucide-React version conflicts
+/** Icono vectorial personalizado de Instagram */
 const InstaIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -15,47 +21,54 @@ const InstaIcon = ({ className }) => (
   </svg>
 );
 
+/** Icono vectorial personalizado de Facebook */
 const FBIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
   </svg>
 );
 
+/** Icono vectorial personalizado de X (Twitter) */
 const XIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.045 4.126H5.078z" />
   </svg>
 );
 
+/**
+ * Componente Home
+ * @returns {JSX.Element} Página principal de inicio
+ */
 const Home = () => {
   return (
     <main className="bg-[#fcf9f4] text-[#1c1c19] font-sans selection:bg-amber-100 overflow-x-hidden">
       
-      {/* Hero Section */}
+      {/* Sección Hero / Portada */}
       <Hero />
 
-      {/* Narrative Section */}
+      {/* Sección de Narrativa / Historia */}
       <Narrative />
 
-      {/* Services Section */}
+      {/* Sección de Servicios */}
       <Services />
 
-      {/* Featured Casino Section */}
+      {/* Sección Promocional del Casino */}
       <Casino />
 
-      {/* Mosaic Gallery Section */}
+      {/* Galería Mosaico de Fotos */}
       <Gallery />
 
-      {/* Location & Contact Section */}
+      {/* Ubicación y Vías de Contacto */}
       <Location />
 
-      {/* Footer Final */}
+      {/* Pie de Página Oficial */}
       <footer className="py-24 bg-slate-900 border-t border-white/5 text-center">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-12 flex justify-center">
             <BrandLogo className="h-20" showTagline={true} />
           </div>
           
+          {/* Enlaces a Redes Sociales */}
           <div className="flex justify-center flex-wrap gap-8 md:gap-12 mb-12">
             <a 
               href="https://www.instagram.com/hoteltamanaco?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" 
@@ -88,6 +101,7 @@ const Home = () => {
             </a>
           </div>
           
+          {/* Copyright y Créditos */}
           <div className="flex flex-col items-center gap-4">
             <div className="h-px w-12 bg-[#D4AF37]/30"></div>
             <p className="text-slate-500 text-[10px] tracking-[0.4em] uppercase font-light">
@@ -102,3 +116,4 @@ const Home = () => {
 };
 
 export default Home;
+

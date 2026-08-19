@@ -1,3 +1,9 @@
+/**
+ * @file Stats.jsx
+ * @description Vista avanzada de estadísticas gerenciales con indicadores globales (KPIs),
+ * gráfico de barras e historial temporal (Recharts) por categoría de servicio y desglose de puntos críticos.
+ */
+
 import React, { useEffect, useState } from 'react';
 import {
   BarChart3,
@@ -37,6 +43,10 @@ import {
   Area
 } from 'recharts';
 
+/**
+ * Hook para detectar responsividad en pantalla móvil (<768px).
+ * @returns {boolean} Es pantalla móvil.
+ */
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -47,29 +57,42 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+/**
+ * Componente Stats
+ * @returns {JSX.Element} Vista gerencial de analíticas y reportes
+ */
 const Stats = () => {
   const isMobile = useIsMobile();
+  
+  // --- ESTADOS DE DATOS Y FILTROS ---
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [serviceStats, setServiceStats] = useState([]);
   const [globalMetrics, setGlobalMetrics] = useState({ avg: 0, total: 0, surveys: 0, positiveRate: '0%' });
-  const [dateFilter, setDateFilter] = useState('all'); // '7', '30', 'all'
+  const [dateFilter, setDateFilter] = useState('all');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [error, setError] = useState(null);
 
+  // Recargar estadísticas al cambiar el filtro de fechas
   useEffect(() => {
     fetchAllStats();
   }, [dateFilter]);
 
+  /**
+   * Obtiene y procesa todas las estadísticas agregadas por servicio,
+   * cálculo de métricas globales y generación de arreglos de distribución y tendencia.
+   */
   const fetchAllStats = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Obtener lista de categorías de servicio
       const { data: cats, error: catsErr } = await supabase.from('categorias_servicio').select('*');
       if (catsErr) throw catsErr;
       setCategories(cats || []);
 
+      // Construcción de la consulta con filtros temporales opcionales
       let query = supabase
         .from('respuesta_detalle')
         .select(`
@@ -103,14 +126,14 @@ const Stats = () => {
 
       const safeResponses = responses || [];
 
-      // Global Metrics
+      // 1. Cálculo de Métricas Globales
       const totalResponses = safeResponses.length;
       const uniqueSurveys = new Set(safeResponses.map(r => r.id_encuesta)).size;
       const globalAvg = totalResponses > 0
         ? (safeResponses.reduce((acc, r) => acc + r.puntuacion, 0) / totalResponses).toFixed(1)
         : 0;
 
-      // Tasa de Satisfacción Positiva: % de encuestas con puntuación final >= 4
+      // Tasa de Satisfacción Positiva (% de encuestas con puntuación >= 4)
       const surveyScoreMap = {};
       safeResponses.forEach(r => {
         if (!surveyScoreMap[r.id_encuesta] && r.encuestas_realizadas) {
@@ -130,7 +153,7 @@ const Stats = () => {
         positiveRate
       });
 
-      // Calculate Stats per Service
+      // 2. Procesamiento de estadísticas individuales por cada categoría de servicio
       const stats = cats.map(cat => {
         const catResponses = safeResponses.filter(r => r.preguntas.categoria_id === cat.id_servicio);
         const avg = catResponses.length > 0
@@ -144,17 +167,17 @@ const Stats = () => {
         const seenSurveys = new Set();
 
         catResponses.forEach(r => {
-          // Questions
+          // Preguntas individuales
           const qName = r.preguntas.texto_pregunta;
           if (!questionMap[qName]) questionMap[qName] = { name: qName, total: 0, count: 0 };
           questionMap[qName].total += r.puntuacion;
           questionMap[qName].count++;
 
-          // Distribution
+          // Distribución de puntuaciones (1 a 5 stars)
           const score = Math.round(r.puntuacion);
           if (distribution[score] !== undefined) distribution[score]++;
 
-          // Comments
+          // Comentarios de huéspedes
           if (r.encuestas_realizadas.comentarios && !seenSurveys.has(r.id_encuesta)) {
             comments.push({
               room: r.encuestas_realizadas.huespedes?.num_habitacion || 'N/A',
@@ -166,7 +189,7 @@ const Stats = () => {
             seenSurveys.add(r.id_encuesta);
           }
 
-          // Trend
+          // Agrupación por fechas para la curva de tendencia
           const date = new Date(r.encuestas_realizadas.fecha_encuesta).toLocaleDateString();
           if (!trendMap[date]) trendMap[date] = { date, total: 0, count: 0 };
           trendMap[date].total += r.puntuacion;
@@ -209,6 +232,7 @@ const Stats = () => {
     }
   };
 
+  /** Devuelve el icono representativo según el nombre de la categoría */
   const getServiceIcon = (name) => {
     const n = (name || '').toLowerCase();
     if (n.includes('recep')) return <ConciergeBell size={24} />;
@@ -218,6 +242,7 @@ const Stats = () => {
     return <Star size={24} />;
   };
 
+  /** Renderiza el gráfico de barras por preguntas para cada servicio */
   const renderServiceChart = (service) => {
     const barWidth = serviceFilter === 'all' ? 30 : 60;
     return (
@@ -278,21 +303,19 @@ const Stats = () => {
     );
   }
 
+  // Filtrado de servicios según el combo de selección
   const filteredServices = serviceStats.filter(s => serviceFilter === 'all' || String(s.id) === String(serviceFilter));
 
-  // KPIs react al filtro de servicio activo
+  // Recálculo reactivo de métricas destacadas
   const displayMetrics = (() => {
     if (serviceFilter === 'all' || filteredServices.length === 0) return globalMetrics;
 
-    // Promedio ponderado de los servicios filtrados
     const weightedAvg = filteredServices.length > 0
       ? (filteredServices.reduce((acc, s) => acc + parseFloat(s.avg || 0), 0) / filteredServices.length).toFixed(1)
       : '—';
 
-    // Encuestas únicas que evaluaron este servicio
     const totalSurveys = filteredServices.reduce((acc, s) => acc + s.responsesCount, 0);
 
-    // Satisfacción positiva: % de respuestas con score 4 o 5 (Exc + Bue en el pie)
     const posCount = filteredServices.flatMap(s => s.pie)
       .filter(p => p.name === 'Exc' || p.name === 'Bue')
       .reduce((acc, p) => acc + p.value, 0);
@@ -302,6 +325,7 @@ const Stats = () => {
     return { avg: weightedAvg, surveys: globalMetrics.surveys, positiveRate };
   })();
 
+  /** Dispara el diálogo de impresión en PDF del reporte gerencial */
   const handleExportPDF = () => {
     window.print();
   };
@@ -319,6 +343,7 @@ const Stats = () => {
           <p className="text-slate-500 text-base">Estado global de la satisfacción y calidad en Hotel Tamanaco.</p>
         </div>
 
+        {/* Filtros de Fecha y Servicio */}
         <div className="flex flex-wrap gap-4">
           <div className="relative group">
             <select
@@ -349,7 +374,7 @@ const Stats = () => {
         </div>
       </header>
 
-      {/* KPIs Principales - Estilo exacto del mockup */}
+      {/* KPIs Principales */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
           { label: 'Promedio del Servicio', value: displayMetrics.avg, icon: Star },
@@ -428,7 +453,7 @@ const Stats = () => {
         </div>
       )}
 
-      {/* Grid de Servicios - 2x2 o Full Width */}
+      {/* Gráficos de Servicios */}
       <div className={`grid grid-cols-1 ${serviceFilter === 'all' ? 'lg:grid-cols-2' : ''} gap-8 mb-12`}>
         {filteredServices.map((service) => (
           <Card
@@ -449,7 +474,7 @@ const Stats = () => {
         ))}
       </div>
 
-      {/* Detalle de Preguntas Maestro - SECCIONADO POR SERVICIO (Estilo Exacto) */}
+      {/* Detalle de Preguntas Maestro por Servicio */}
       <div className="space-y-8">
         {filteredServices.map((service, sidx) => (
           <div key={service.id} className="bg-white rounded-2xl border-t-4 border-t-[#C5A02D] shadow-sm p-6 md:p-10 border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700" style={{ animationDelay: `${sidx * 150}ms` }}>
@@ -491,12 +516,13 @@ const Stats = () => {
       {/* Footer Global con Feedback y Botón de Reporte */}
       <div className="flex flex-col gap-8 max-w-5xl mx-auto">
 
+        {/* Comentario Destacado */}
         <Card title="Comentario Destacado" className="p-10 shadow-xl shadow-slate-100">
           <div className="mt-2">
             {(() => {
               const allComments = filteredServices.flatMap(s => s.recentComments);
               if (allComments.length === 0) return <p className="text-slate-400 italic">No hay comentarios para mostrar.</p>;
-              const com = allComments[0]; // Solo muestra el primer comentario general
+              const com = allComments[0];
               return (
                 <div className="bg-slate-50 p-5 sm:p-8 rounded-3xl border border-slate-100 relative group transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -520,13 +546,13 @@ const Stats = () => {
           </div>
         </Card>
 
+        {/* Puntos Críticos */}
         <Card title="Puntos Críticos (Atención Prioritaria)" className="p-10 border-t-4 border-l-[0px] border-t-red-500 shadow-xl shadow-slate-100">
           <p className="text-sm text-slate-400 mb-6 font-medium leading-relaxed">
             Las evaluaciones con el promedio más bajo en todo el hotel que requieren revisión urgente.
           </p>
           <div className="space-y-4 pt-2">
             {(() => {
-              // Extraer todas las preguntas de los servicios visibles y ordenarlas globalmente por peor puntaje
               const allQuestions = filteredServices.flatMap(s =>
                 s.questions.map(q => ({ ...q, serviceName: s.name }))
               );
@@ -561,11 +587,12 @@ const Stats = () => {
           </div>
         </Card>
 
+        {/* Exportar Reporte */}
         <div className="no-print mt-12 mb-8 flex flex-col items-center gap-6">
           <Button
             variant="accent"
             className="w-full md:w-auto md:min-w-[400px] py-5 bg-[#C5A02D] hover:bg-slate-900 text-white shadow-xl shadow-amber-500/20 rounded-full font-black tracking-[0.2em] uppercase flex items-center justify-center gap-4 group transition-all duration-300"
-            onClick={() => window.print()}
+            onClick={handleExportPDF}
           >
             <Download size={20} />
             Exportar Reporte
@@ -581,3 +608,4 @@ const Stats = () => {
 };
 
 export default Stats;
+

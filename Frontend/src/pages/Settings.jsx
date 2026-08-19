@@ -1,3 +1,9 @@
+/**
+ * @file Settings.jsx
+ * @description Gestión y administración del sistema: creación/edición/eliminación de categorías
+ * de servicio (departamentos) y preguntas activas en la encuesta.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Plus, Trash2, Edit3, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -6,30 +12,39 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Loader from '../components/ui/Loader';
 
+/**
+ * Componente Settings
+ * @returns {JSX.Element} Panel de configuración del sistema
+ */
 const Settings = () => {
+  // --- ESTADOS DE PREGUNTAS Y CATEGORÍAS ---
   const [questions, setQuestions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addingToCategory, setAddingToCategory] = useState(null); // ID of category currently adding to
-  const [newQuestionTexts, setNewQuestionTexts] = useState({}); // { categoryId: 'text' }
+  const [addingToCategory, setAddingToCategory] = useState(null);
+  const [newQuestionTexts, setNewQuestionTexts] = useState({});
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Estado para creación de categorías
+  // --- ESTADO PARA CREACIÓN DE CATEGORÍAS DE SERVICIO ---
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDescription, setNewCategoryDescription] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
 
-  // Estado para edición de categorías
-  const [editingCategory, setEditingCategory] = useState(null); // objeto categoría o null
+  // --- ESTADO PARA EDICIÓN DE CATEGORÍAS DE SERVICIO ---
+  const [editingCategory, setEditingCategory] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState('');
   const [editCategoryDescription, setEditCategoryDescription] = useState('');
   const [updatingCategory, setUpdatingCategory] = useState(false);
 
+  // Carga inicial de datos
   useEffect(() => {
     fetchInitialData();
   }, []);
 
+  /**
+   * Carga las categorías de servicio y preguntas activas registradas en Supabase.
+   */
   const fetchInitialData = async () => {
     try {
       setLoading(true);
@@ -59,6 +74,10 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Registra una nueva pregunta asociada a una categoría de servicio específica.
+   * @param {number} categoryId - Identificador único del servicio.
+   */
   const handleAddQuestion = async (categoryId) => {
     const text = newQuestionTexts[categoryId];
     if (!text || !text.trim()) return;
@@ -87,6 +106,10 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Desactiva (soft-delete) una pregunta existente cambiando su bandera activa a false.
+   * @param {number} id - Identificador de la pregunta.
+   */
   const handleDeleteQuestion = async (id) => {
     if (!window.confirm('¿Estás seguro de desactivar esta pregunta? Dejará de aparecer en las nuevas encuestas pero se conservará en el historial.')) {
       return;
@@ -112,15 +135,18 @@ const Settings = () => {
     }
   };
 
+  /** Muestra notificaciones flotantes temporales de éxito o error */
   const showStatus = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 5000);
   };
 
+  /** Maneja el cambio en el input de texto de nueva pregunta por categoría */
   const handleInputChange = (categoryId, value) => {
     setNewQuestionTexts(prev => ({ ...prev, [categoryId]: value }));
   };
 
+  /** Guarda una nueva categoría de servicio en Supabase */
   const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -152,12 +178,14 @@ const Settings = () => {
     }
   };
 
+  /** Abre la ventana modal para editar los datos de una categoría */
   const handleOpenEditCategory = (category) => {
     setEditingCategory(category);
     setEditCategoryName(category.nombre_servicio || '');
     setEditCategoryDescription(category.descripcion_servicio || '');
   };
 
+  /** Actualiza la información de una categoría de servicio existente */
   const handleUpdateCategory = async (e) => {
     e.preventDefault();
     if (!editingCategory || !editCategoryName.trim()) return;
@@ -188,13 +216,18 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Elimina en cascada una categoría de servicio y disocia/elimina sus preguntas y respuestas.
+   * @param {number} categoryId - Identificador de la categoría.
+   * @param {string} categoryName - Nombre de la categoría.
+   */
   const handleDeleteCategory = async (categoryId, categoryName) => {
     if (!window.confirm(`¿Estás seguro de eliminar el servicio "${categoryName}"?`)) {
       return;
     }
 
     try {
-      // 1. Obtener TODAS las preguntas (activas e inactivas) asociadas a esta categoría
+      // 1. Obtener todas las preguntas asociadas a esta categoría
       const { data: allCatQuestions, error: fetchQErr } = await supabase
         .from('preguntas')
         .select('id_preguntas')
@@ -205,11 +238,11 @@ const Settings = () => {
       const qIds = (allCatQuestions || []).map(q => q.id_preguntas);
 
       if (qIds.length > 0) {
-        // Eliminar respuestas asociadas en respuesta_detalle
+        // Eliminar detalles de respuesta
         await supabase.from('respuesta_detalle').delete().in('id_pregunta', qIds);
         await supabase.from('respuesta_detalle').delete().in('id_preguntas', qIds);
 
-        // Eliminar las preguntas de la tabla preguntas
+        // Eliminar preguntas asociadas
         const { error: qDeleteErr } = await supabase
           .from('preguntas')
           .delete()
@@ -220,7 +253,7 @@ const Settings = () => {
         }
       }
 
-      // 2. Intentar eliminar la categoría
+      // 2. Eliminar categoría de servicio
       const { error: catError, count } = await supabase
         .from('categorias_servicio')
         .delete({ count: 'exact' })
@@ -245,6 +278,7 @@ const Settings = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Encabezado */}
       <header className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif text-slate-900 mb-2">Configuración de Encuestas</h1>
@@ -259,6 +293,7 @@ const Settings = () => {
         </Button>
       </header>
 
+      {/* Alertas notificadoras */}
       {message.text && (
         <div className={`
           fixed top-8 right-8 z-[100] p-4 rounded-xl shadow-lg border flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300
@@ -269,7 +304,7 @@ const Settings = () => {
         </div>
       )}
 
-      {/* Modal para Nuevo Servicio */}
+      {/* Modal para Crear Servicio */}
       {showAddCategoryModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
@@ -359,6 +394,7 @@ const Settings = () => {
         </div>
       )}
 
+      {/* Grilla de Servicios y Gestor de Preguntas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {categories.map((category) => {
           const catQuestions = questions.filter(q => q.categoria_id === category.id_servicio);
@@ -399,6 +435,7 @@ const Settings = () => {
                 </div>
               )}
 
+              {/* Preguntas de esta categoría */}
               <div className="flex-1 space-y-4 mb-6">
                 {catQuestions.length === 0 ? (
                   <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -428,6 +465,7 @@ const Settings = () => {
                 )}
               </div>
 
+              {/* Formulario rápido para añadir pregunta */}
               <div className="mt-auto pt-6 border-t border-slate-50">
                 <div className="flex gap-2">
                   <Input 
@@ -463,4 +501,5 @@ const Settings = () => {
 };
 
 export default Settings;
+
 
