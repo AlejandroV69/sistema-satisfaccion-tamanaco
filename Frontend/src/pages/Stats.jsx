@@ -4,7 +4,7 @@
  * gráfico de barras e historial temporal (Recharts) por categoría de servicio y desglose de puntos críticos.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -76,15 +76,43 @@ const Stats = () => {
   // Recargar estadísticas al cambiar el filtro de fechas
   useEffect(() => {
     fetchAllStats();
-  }, [dateFilter]);
+  }, [fetchAllStats]);
+
+  // Polling cada 10 segundos para actualización garantizada
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllStats(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchAllStats]);
+
+  // Canal Realtime de Supabase como respaldo
+  useEffect(() => {
+    const channel = supabase
+      .channel('stats-realtime-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'respuesta_detalle' }, () => {
+        fetchAllStats(true);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'encuestas_realizadas' }, () => {
+        fetchAllStats(true);
+      })
+      .subscribe((status) => {
+        console.log('[Stats] Realtime status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchAllStats]);
 
   /**
    * Obtiene y procesa todas las estadísticas agregadas por servicio,
    * cálculo de métricas globales y generación de arreglos de distribución y tendencia.
+   * @param {boolean} [isSilent=false] - Si es true, realiza el cálculo sin mostrar loader.
    */
-  const fetchAllStats = async () => {
+  const fetchAllStats = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       setError(null);
 
       // Obtener lista de categorías de servicio
@@ -230,7 +258,7 @@ const Stats = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFilter]);
 
   /** Devuelve el icono representativo según el nombre de la categoría */
   const getServiceIcon = (name) => {

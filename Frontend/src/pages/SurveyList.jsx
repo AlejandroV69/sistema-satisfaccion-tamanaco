@@ -4,7 +4,7 @@
  * de detalles para la lista de encuestas registradas.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, MoreHorizontal, Calendar, Download, User, MapPin, Star, X, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Card from '../components/ui/Card';
@@ -33,17 +33,13 @@ const SurveyList = () => {
   
   const dateInputRef = React.useRef(null);
 
-  // Carga inicial de encuestas
-  useEffect(() => {
-    fetchSurveys();
-  }, []);
-
   /**
    * Obtiene la lista completa de encuestas registradas asociadas a sus respectivos huéspedes.
+   * @param {boolean} [isSilent=false] - Si es true, realiza la actualización sin mostrar loader.
    */
-  const fetchSurveys = async () => {
+  const fetchSurveys = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const { data, error } = await supabase
         .from('encuestas_realizadas')
         .select(`
@@ -81,7 +77,40 @@ const SurveyList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Carga inicial
+  useEffect(() => {
+    fetchSurveys();
+  }, [fetchSurveys]);
+
+  // Polling cada 10 segundos para actualización garantizada
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchSurveys(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchSurveys]);
+
+  // Canal Realtime de Supabase como respaldo
+  useEffect(() => {
+    const channel = supabase
+      .channel('surveys-realtime-changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'encuestas_realizadas' },
+        () => {
+          fetchSurveys(true);
+        }
+      )
+      .subscribe((status) => {
+        console.log('[SurveyList] Realtime status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSurveys]);
 
   /**
    * Abre la ventana modal e inserta los detalles de respuestas individuales para la encuesta seleccionada.

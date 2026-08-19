@@ -69,18 +69,14 @@ const Dashboard = () => {
   const [alerts, setAlerts] = React.useState([]);
   const [error, setError] = React.useState(null);
 
-  // Carga inicial de datos al montar el componente
-  React.useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   /**
    * Obtiene de Supabase todas las métricas globales, puntuaciones por servicio,
    * encuestas recientes y preguntas críticas con menor puntuación.
+   * @param {boolean} [isSilent=false] - Si es true, no muestra el cargador de pantalla completa.
    */
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       setError(null);
 
       // 1. Obtener encuestas realizadas y datos del huésped
@@ -206,7 +202,40 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Carga inicial de datos
+  React.useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Polling cada 10 segundos para garantizar la actualización en tiempo real
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDashboardData(true); // Refresco silencioso (sin pantalla de carga)
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
+
+  // Canal Realtime de Supabase como respaldo (si el polling no bastara)
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-realtime-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'encuestas_realizadas' }, () => {
+        fetchDashboardData(true);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'respuesta_detalle' }, () => {
+        fetchDashboardData(true);
+      })
+      .subscribe((status) => {
+        console.log('[Dashboard] Realtime status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDashboardData]);
 
   // Configuración de indicadores visuales de tendencia
   const isPositive = stats.tendencia.startsWith('+');
@@ -252,10 +281,19 @@ const Dashboard = () => {
       {/* Encabezado del Dashboard */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-serif text-slate-900 mb-2">Panel de Control</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-4xl font-serif text-slate-900">Panel de Control</h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              En tiempo real
+            </span>
+          </div>
           <p className="text-slate-500 text-lg">Bienvenido al sistema de gestión de satisfacción del Hotel Tamanaco.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => navigate('/surveys')}>Ver Todas</Button>
           <Button variant="accent" onClick={() => window.open('/survey', '_blank')}>Abrir Encuesta Pública</Button>
         </div>
