@@ -56,28 +56,24 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
-  // --- ESTADOS DE DATOS Y CARGA ---
-  const [loading, setLoading] = React.useState(true);
-  const [stats, setStats] = React.useState({
-    totalEncuestas: 0,
-    promedioGral: 0,
-    comentariosCount: 0,
-    tendencia: '+0.0%'
+  // --- ESTADO UNIFICADO: consolida métricas, gráficos y alertas en un solo objeto para evitar re-renders múltiples (cero parpadeos) ---
+  const [dashState, setDashState] = React.useState({
+    loading: true,
+    error: null,
+    stats: { totalEncuestas: 0, promedioGral: 0, comentariosCount: 0, tendencia: '+0.0%' },
+    deptStats: [],
+    recentSurveys: [],
+    alerts: [],
   });
-  const [deptStats, setDeptStats] = React.useState([]);
-  const [recentSurveys, setRecentSurveys] = React.useState([]);
-  const [alerts, setAlerts] = React.useState([]);
-  const [error, setError] = React.useState(null);
 
   /**
    * Obtiene de Supabase todas las métricas globales, puntuaciones por servicio,
    * encuestas recientes y preguntas críticas con menor puntuación.
-   * @param {boolean} [isSilent=false] - Si es true, no muestra el cargador de pantalla completa.
+   * @param {boolean} [isSilent=false] - Si es true, realiza la actualización en segundo plano sin activar pantallas de carga.
    */
   const fetchDashboardData = React.useCallback(async (isSilent = false) => {
     try {
-      if (!isSilent) setLoading(true);
-      setError(null);
+      if (!isSilent) setDashState(prev => ({ ...prev, loading: true, error: null }));
 
       // 1. Obtener encuestas realizadas y datos del huésped
       const { data: surveys, error: surveyError } = await supabase
@@ -146,28 +142,19 @@ const Dashboard = () => {
         tendencia = 'Primer reg.';
       }
 
-      setStats({ 
-        totalEncuestas: total,
-        promedioGral: avgFromResponses,
-        comentariosCount: feedback,
-        tendencia 
-      });
-
       // Calcular promedio de cada categoría de servicio para el gráfico de barras
-      if (safeCategories.length > 0) {
-        const results = safeCategories.map(cat => {
-          const catResponses = safeResponses.filter(r => r.preguntas?.categoria_id === cat.id_servicio);
-          const puntuacionValue = catResponses.length > 0
-            ? parseFloat((catResponses.reduce((a, b) => a + b.puntuacion, 0) / catResponses.length).toFixed(1))
-            : 0;
-          return { name: cat.nombre_servicio, puntuacion: puntuacionValue, id: cat.id_servicio };
-        }).filter(r => r.puntuacion > 0);
-        
-        setDeptStats(results);
-      }
+      const newDeptStats = safeCategories.length > 0
+        ? safeCategories.map(cat => {
+            const catResponses = safeResponses.filter(r => r.preguntas?.categoria_id === cat.id_servicio);
+            const puntuacionValue = catResponses.length > 0
+              ? parseFloat((catResponses.reduce((a, b) => a + b.puntuacion, 0) / catResponses.length).toFixed(1))
+              : 0;
+            return { name: cat.nombre_servicio, puntuacion: puntuacionValue, id: cat.id_servicio };
+          }).filter(r => r.puntuacion > 0)
+        : [];
 
-      // 3. Formatear las 5 encuestas más recientes
-      setRecentSurveys(safeSurveys.slice(0, 5).map(s => {
+      // Formatear las 5 encuestas más recientes
+      const newRecentSurveys = safeSurveys.slice(0, 5).map(s => {
         const guestInfo = Array.isArray(s.huespedes) ? s.huespedes[0] : s.huespedes;
         return {
           id: s.id_encuesta,
@@ -176,9 +163,9 @@ const Dashboard = () => {
           score: s.puntuacion_final,
           date: s.fecha_encuesta ? new Date(s.fecha_encuesta).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : 'N/A'
         };
-      }));
+      });
 
-      // 4. Identificar las 3 preguntas con peor puntuación (Alertas críticas de servicio)
+      // Identificar las 3 preguntas con peor puntuación (Alertas críticas de servicio)
       const questionMap = {};
       safeResponses.forEach(r => {
          const qText = r.preguntas?.texto_pregunta;
@@ -194,31 +181,42 @@ const Dashboard = () => {
          serviceName: safeCategories.find(c => c.id_servicio === q.catId)?.nombre_servicio || 'General'
       }));
       const worstQ = allQ.sort((a,b) => a.score - b.score).slice(0, 3);
-      setAlerts(worstQ);
+
+      // ✅ Actualización en un solo ciclo de render para eliminar parpadeos
+      setDashState({
+        loading: false,
+        error: null,
+        stats: { totalEncuestas: total, promedioGral: avgFromResponses, comentariosCount: feedback, tendencia },
+        deptStats: newDeptStats,
+        recentSurveys: newRecentSurveys,
+        alerts: worstQ,
+      });
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('No se pudieron cargar los datos del panel. Verifica tu conexión a Supabase e intenta de nuevo.');
-    } finally {
-      setLoading(false);
+      setDashState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'No se pudieron cargar los datos del panel. Verifica tu conexión a Supabase e intenta de nuevo.',
+      }));
     }
   }, []);
 
-  // Carga inicial de datos
+  // Carga inicial de datos al montar el componente
   React.useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Polling cada 10 segundos para garantizar la actualización en tiempo real
+  // Polling automático en segundo plano (cada 15s) para mantener las métricas sincronizadas sin interrumpir la interfaz
   React.useEffect(() => {
     const interval = setInterval(() => {
-      fetchDashboardData(true); // Refresco silencioso (sin pantalla de carga)
-    }, 10000);
+      fetchDashboardData(true);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
 
-  // Canal Realtime de Supabase como respaldo (si el polling no bastara)
+  // Suscripción WebSocket a Supabase Realtime como mecanismo de actualización instantánea secundario
   React.useEffect(() => {
     const channel = supabase
       .channel('dashboard-realtime-changes')
@@ -236,6 +234,9 @@ const Dashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [fetchDashboardData]);
+
+  // Desestructurar el estado unificado para el JSX
+  const { loading, error, stats, deptStats, recentSurveys, alerts } = dashState;
 
   // Configuración de indicadores visuales de tendencia
   const isPositive = stats.tendencia.startsWith('+');
@@ -348,6 +349,7 @@ const Dashboard = () => {
                 name="Puntuación"
                 radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]}
                 barSize={isMobile ? 24 : 40}
+                isAnimationActive={false}
                 label={{ 
                   position: isMobile ? 'right' : 'top', 
                   fill: '#0f172a', 

@@ -73,38 +73,6 @@ const Stats = () => {
   const [serviceFilter, setServiceFilter] = useState('all');
   const [error, setError] = useState(null);
 
-  // Recargar estadísticas al cambiar el filtro de fechas
-  useEffect(() => {
-    fetchAllStats();
-  }, [fetchAllStats]);
-
-  // Polling cada 10 segundos para actualización garantizada
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchAllStats(true);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [fetchAllStats]);
-
-  // Canal Realtime de Supabase como respaldo
-  useEffect(() => {
-    const channel = supabase
-      .channel('stats-realtime-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'respuesta_detalle' }, () => {
-        fetchAllStats(true);
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'encuestas_realizadas' }, () => {
-        fetchAllStats(true);
-      })
-      .subscribe((status) => {
-        console.log('[Stats] Realtime status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchAllStats]);
-
   /**
    * Obtiene y procesa todas las estadísticas agregadas por servicio,
    * cálculo de métricas globales y generación de arreglos de distribución y tendencia.
@@ -118,7 +86,6 @@ const Stats = () => {
       // Obtener lista de categorías de servicio
       const { data: cats, error: catsErr } = await supabase.from('categorias_servicio').select('*');
       if (catsErr) throw catsErr;
-      setCategories(cats || []);
 
       // Construcción de la consulta con filtros temporales opcionales
       let query = supabase
@@ -153,6 +120,7 @@ const Stats = () => {
       if (respErr) throw respErr;
 
       const safeResponses = responses || [];
+      const safeCats = cats || [];
 
       // 1. Cálculo de Métricas Globales
       const totalResponses = safeResponses.length;
@@ -174,15 +142,10 @@ const Stats = () => {
         ? `${Math.round((positiveCount / allSurveyScores.length) * 100)}%`
         : '—';
 
-      setGlobalMetrics({
-        avg: globalAvg,
-        total: totalResponses,
-        surveys: uniqueSurveys,
-        positiveRate
-      });
+      const newGlobalMetrics = { avg: globalAvg, total: totalResponses, surveys: uniqueSurveys, positiveRate };
 
       // 2. Procesamiento de estadísticas individuales por cada categoría de servicio
-      const stats = cats.map(cat => {
+      const stats = safeCats.map(cat => {
         const catResponses = safeResponses.filter(r => r.preguntas.categoria_id === cat.id_servicio);
         const avg = catResponses.length > 0
           ? (catResponses.reduce((acc, r) => acc + r.puntuacion, 0) / catResponses.length).toFixed(1)
@@ -250,15 +213,50 @@ const Stats = () => {
         };
       }).filter(cat => cat.total > 0 || cat.questions.length > 0);
 
+      // ✅ Un único setState atómico — sin parpadeos
+      setCategories(safeCats);
+      setGlobalMetrics(newGlobalMetrics);
       setServiceStats(stats);
+      setLoading(false);
 
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError('No se pudieron cargar las estadísticas. Verifica tu conexión a Supabase e intenta de nuevo.');
-    } finally {
       setLoading(false);
     }
   }, [dateFilter]);
+
+  // Recargar estadísticas al cambiar el filtro de fechas
+  useEffect(() => {
+    fetchAllStats();
+  }, [fetchAllStats]);
+
+  // Polling cada 15 segundos para actualización garantizada
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllStats(true);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchAllStats]);
+
+  // Canal Realtime de Supabase como respaldo
+  useEffect(() => {
+    const channel = supabase
+      .channel('stats-realtime-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'respuesta_detalle' }, () => {
+        fetchAllStats(true);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'encuestas_realizadas' }, () => {
+        fetchAllStats(true);
+      })
+      .subscribe((status) => {
+        console.log('[Stats] Realtime status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchAllStats]);
 
   /** Devuelve el icono representativo según el nombre de la categoría */
   const getServiceIcon = (name) => {
@@ -295,7 +293,7 @@ const Stats = () => {
               return null;
             }}
           />
-          <Bar dataKey="score" radius={[6, 6, 0, 0]} barSize={barWidth}>
+          <Bar dataKey="score" radius={[6, 6, 0, 0]} barSize={barWidth} isAnimationActive={false}>
             {service.questions.map((entry, i) => {
               let barColor = '#C5A02D'; // Dorado Premium (Excelente)
               if (entry.score >= 4.0) barColor = '#C5A02D';
@@ -310,7 +308,7 @@ const Stats = () => {
     );
   };
 
-  if (loading) return <Loader fullPage message="Generando Reporte Maestro..." />;
+  if (loading && serviceStats.length === 0) return <Loader fullPage message="Generando Reporte Maestro..." />;
 
   if (error) {
     return (
@@ -471,6 +469,7 @@ const Stats = () => {
                         fill={`url(#grad-${service.id})`}
                         dot={{ fill: '#C5A02D', strokeWidth: 0, r: 3.5 }}
                         activeDot={{ r: 6, fill: '#C5A02D', strokeWidth: 0 }}
+                        isAnimationActive={false}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
