@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, User, CheckCircle2, Calendar, AlertCircle, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { allCountries } from '../data/countries';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Loader from '../components/ui/Loader';
