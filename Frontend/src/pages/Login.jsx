@@ -52,13 +52,23 @@ const Login = () => {
       });
 
       if (error) {
-        setError(error.message);
+        // Traducción de mensajes de error de Supabase a español
+        const msg = error.message.toLowerCase();
+        if (msg.includes('invalid login credentials')) {
+          setError('Credenciales incorrectas. Por favor verifique su correo y contraseña.');
+        } else if (msg.includes('email not confirmed')) {
+          setError('El correo electrónico aún no ha sido confirmado.');
+        } else if (msg.includes('too many requests')) {
+          setError('Demasiados intentos fallidos. Espere unos minutos antes de reintentar.');
+        } else {
+          setError('Error al iniciar sesión. Por favor verifique sus datos.');
+        }
       } else {
         navigate('/dashboard');
       }
     } catch (err) {
       const isOffline = !navigator.onLine || err.message?.includes('Failed to fetch');
-      setError(isOffline ? 'Sin conexión a internet. Intente nuevamente.' : err.message);
+      setError(isOffline ? 'Sin conexión a internet. Intente nuevamente.' : 'Ocurrió un problema al autenticar. Verifique su conexión.');
     } finally {
       setLoading(false);
     }
