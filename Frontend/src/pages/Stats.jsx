@@ -28,6 +28,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/ui/Loader';
+import CustomSelect from '../components/ui/CustomSelect';
 import {
   BarChart,
   Bar,
@@ -371,32 +372,27 @@ const Stats = () => {
 
         {/* Filtros de Fecha y Servicio */}
         <div className="flex flex-wrap gap-4">
-          <div className="relative group">
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 rounded-2xl px-6 py-3.5 pr-14 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-accent/5 transition-all shadow-sm group-hover:border-accent/40"
-            >
-              <option value="all">Todo el Histórico</option>
-              <option value="7">Últimos 7 Días</option>
-              <option value="30">Últimos 30 Días</option>
-            </select>
-            <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-accent" />
-          </div>
+          <CustomSelect
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'Todo el Histórico' },
+              { value: '7', label: 'Últimos 7 Días' },
+              { value: '30', label: 'Últimos 30 Días' }
+            ]}
+          />
 
-          <div className="relative group">
-            <select
-              value={serviceFilter}
-              onChange={(e) => setServiceFilter(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 rounded-2xl px-6 py-3.5 pr-14 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-accent/5 transition-all shadow-sm group-hover:border-accent/40"
-            >
-              <option value="all">Todos los Servicios</option>
-              {serviceStats.map(cat => (
-                <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-accent" />
-          </div>
+          <CustomSelect
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'Todos los Servicios' },
+              ...serviceStats.map(cat => ({
+                value: String(cat.id),
+                label: cat.name
+              }))
+            ]}
+          />
         </div>
       </header>
 
